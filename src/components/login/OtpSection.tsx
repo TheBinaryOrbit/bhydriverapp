@@ -32,9 +32,6 @@ export default function OtpSection({
   const handleChange = (text: string) => {
     const digits = text.replace(/[^0-9]/g, '');
     onChangeOtp(digits);
-    if (digits.length === 6) {
-      onComplete();
-    }
   };
 
   return (

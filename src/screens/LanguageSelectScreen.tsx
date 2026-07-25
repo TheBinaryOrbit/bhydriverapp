@@ -50,6 +50,9 @@ export default function LanguageSelectScreen({ navigation }: Props) {
           borderRadius: 18,
           alignItems: 'center',
           justifyContent: 'center',
+          // Solid base so Android's elevation shadow follows `borderRadius`
+          // instead of falling back to a square.
+          backgroundColor: colors.secondary,
           shadowColor: colors.secondary,
           shadowOpacity: 0.25,
           shadowRadius: 12,

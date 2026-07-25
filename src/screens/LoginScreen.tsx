@@ -83,7 +83,7 @@ export default function LoginScreen({ navigation }: Props) {
   }, [phone, agreed, t, startResendTimer]);
 
   const handleVerifyOtp = useCallback(async () => {
-    Keyboard.dismiss();
+    // Keyboard.dismiss();
     if (otp.length < 6) {
       notify(t('otp.incompleteOtp'));
       return;

@@ -29,4 +29,11 @@ export const colors = {
 /** Navy gradient used across badges and primary buttons. */
 export const navyGradient: string[] = ['#002d4b', '#004a7c'];
 
+/**
+ * Desaturated navy for a disabled primary button. Dimming the gradient itself
+ * is what lets the button avoid a parent `opacity`, which on Android clips the
+ * elevation shadow into a hard-edged rectangle.
+ */
+export const navyGradientMuted: string[] = ['#6b8290', '#5c7382'];
+
 export type AppColors = typeof colors;
