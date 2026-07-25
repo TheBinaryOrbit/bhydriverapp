@@ -132,6 +132,8 @@ export default function DriverOnboardingScreen({ navigation, route }: Props) {
           form.vehicleSideImage,
           form.vehicleBackImage,
         ],
+        rcFrontImage: form.rcFrontImage,
+        rcBackImage: form.rcBackImage,
       });
 
       await saveSession({

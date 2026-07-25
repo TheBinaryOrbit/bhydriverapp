@@ -191,6 +191,24 @@ export default function VehicleStep({
             error={errors.vehicleBackImage}
           />
         </View>
+
+        <SectionLabel title={t('vehicleForm.rc')} required />
+        <View className="-mt-2 gap-4">
+          <ImageUpload
+            label={t('vehicleForm.rcFront')}
+            required
+            value={form.rcFrontImage}
+            onChange={image => onChange('rcFrontImage', image)}
+            error={errors.rcFrontImage}
+          />
+          <ImageUpload
+            label={t('vehicleForm.rcBack')}
+            required
+            value={form.rcBackImage}
+            onChange={image => onChange('rcBackImage', image)}
+            error={errors.rcBackImage}
+          />
+        </View>
       </View>
     </View>
   );

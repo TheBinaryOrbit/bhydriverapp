@@ -54,7 +54,9 @@ type Values = {
 /** The three vehicle photo slots, in `PHOTO_SLOTS` order. */
 type PhotoKey = 'photo0' | 'photo1' | 'photo2';
 
-type Errors = Partial<Record<keyof Values | PhotoKey, string>>;
+type RcKey = 'rcFrontImage' | 'rcBackImage';
+
+type Errors = Partial<Record<keyof Values | PhotoKey | RcKey, string>>;
 
 /**
  * A driver may own exactly one vehicle, created during onboarding, so this
@@ -132,6 +134,11 @@ export default function EditVehicleScreen({ navigation }: Props) {
     setErrors(prev => (prev[key] ? { ...prev, [key]: undefined } : prev));
   }, []);
 
+  /** Drops a non-text field's error as soon as the driver acts on it. */
+  const clearError = useCallback((key: keyof Errors) => {
+    setErrors(prev => (prev[key] ? { ...prev, [key]: undefined } : prev));
+  }, []);
+
   const handleSelectType = useCallback(
     (typeId: string) => {
       update('vehicleTypeId', typeId);
@@ -203,8 +210,27 @@ export default function EditVehicleScreen({ navigation }: Props) {
         }
       });
     }
+
+    // Both RC sides are mandatory. Unlike the vehicle photos, each side is
+    // replaced independently server-side, so one already on the server counts
+    // as satisfied — the driver only has to upload what's missing.
+    if (!rcFrontImage && !vehicle?.rcDetails?.frontImageUrl) {
+      next.rcFrontImage = t('onboarding.errors.imageRequired');
+    }
+    if (!rcBackImage && !vehicle?.rcDetails?.backImageUrl) {
+      next.rcBackImage = t('onboarding.errors.imageRequired');
+    }
     return next;
-  }, [values, isEdit, images, pickedImages.length, t]);
+  }, [
+    values,
+    isEdit,
+    images,
+    pickedImages.length,
+    rcFrontImage,
+    rcBackImage,
+    vehicle,
+    t,
+  ]);
 
   const handleSave = useCallback(async () => {
     Keyboard.dismiss();
@@ -416,19 +442,29 @@ export default function EditVehicleScreen({ navigation }: Props) {
             ))}
           </View>
 
-          <SectionLabel title={t('vehicleForm.rc')} />
+          <SectionLabel title={t('vehicleForm.rc')} required />
           <View className="-mt-2 gap-4">
             <ImageUpload
               label={t('vehicleForm.rcFront')}
+              required
+              error={errors.rcFrontImage}
               value={rcFrontImage}
               currentUrl={vehicle?.rcDetails?.frontImageUrl || undefined}
-              onChange={setRcFrontImage}
+              onChange={image => {
+                setRcFrontImage(image);
+                clearError('rcFrontImage');
+              }}
             />
             <ImageUpload
               label={t('vehicleForm.rcBack')}
+              required
+              error={errors.rcBackImage}
               value={rcBackImage}
               currentUrl={vehicle?.rcDetails?.backImageUrl || undefined}
-              onChange={setRcBackImage}
+              onChange={image => {
+                setRcBackImage(image);
+                clearError('rcBackImage');
+              }}
             />
           </View>
         </View>

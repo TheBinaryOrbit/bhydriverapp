@@ -120,6 +120,12 @@ export function validateStep(
     if (!form.vehicleBackImage) {
       errors.vehicleBackImage = t('onboarding.errors.imageRequired');
     }
+    if (!form.rcFrontImage) {
+      errors.rcFrontImage = t('onboarding.errors.imageRequired');
+    }
+    if (!form.rcBackImage) {
+      errors.rcBackImage = t('onboarding.errors.imageRequired');
+    }
   }
 
   return errors;

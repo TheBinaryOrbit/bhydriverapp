@@ -28,6 +28,8 @@ export type OnboardPayload = {
   insuranceExpiryYear?: string;
   /** Front / side / back, in that order. Up to 3, all optional. */
   vehicleImages?: (PickedImage | null)[];
+  rcFrontImage?: PickedImage | null;
+  rcBackImage?: PickedImage | null;
 };
 
 export type OnboardResult = {
@@ -106,6 +108,8 @@ export async function onboardDriver(
   payload.vehicleImages?.forEach(image => {
     appendFile(form, 'vehicleImages', image);
   });
+  appendFile(form, 'rcFrontImage', payload.rcFrontImage);
+  appendFile(form, 'rcBackImage', payload.rcBackImage);
 
   // Don't set Content-Type — the boundary has to come from the HTTP client.
   const res = await fetch(apiUrl(API.endpoints.driverOnboard), {

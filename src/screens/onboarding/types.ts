@@ -31,6 +31,8 @@ export type OnboardingForm = {
   vehicleFrontImage: PickedImage | null;
   vehicleSideImage: PickedImage | null;
   vehicleBackImage: PickedImage | null;
+  rcFrontImage: PickedImage | null;
+  rcBackImage: PickedImage | null;
 };
 
 export type FormErrors = Partial<Record<keyof OnboardingForm, string>>;
@@ -70,5 +72,7 @@ export function createEmptyForm(phoneNumber: string): OnboardingForm {
     vehicleFrontImage: null,
     vehicleSideImage: null,
     vehicleBackImage: null,
+    rcFrontImage: null,
+    rcBackImage: null,
   };
 }
