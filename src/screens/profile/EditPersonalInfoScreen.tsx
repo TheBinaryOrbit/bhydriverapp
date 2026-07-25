@@ -227,7 +227,7 @@ export default function EditPersonalInfoScreen({ navigation }: Props) {
             value={driver?.phoneNumber ?? ''}
             locked
             hint={t('editProfile.phoneLocked')}
-            onChangeText={() => {}}
+            onChangeText={() => { }}
           />
 
           <FormField
@@ -255,9 +255,24 @@ export default function EditPersonalInfoScreen({ navigation }: Props) {
             value={values.gender}
             onChange={value => update('gender', value)}
             options={[
-              { value: 'male', label: t('onboarding.gender.male') , icon : "gender-male"},
-              { value: 'female', label: t('onboarding.gender.female') , icon : "gender-female"},
-              { value: 'other', label: t('onboarding.gender.other') , icon : "gender-other" },
+              {
+                value: 'male',
+                label: t('onboarding.gender.male'),
+                icon: 'gender-male',
+                iconSet: 'community',
+              },
+              {
+                value: 'female',
+                label: t('onboarding.gender.female'),
+                icon: 'gender-female',
+                iconSet: 'community',
+              },
+              {
+                value: 'other',
+                label: t('onboarding.gender.other'),
+                icon: 'gender-transgender',
+                iconSet: 'community',
+              },
             ]}
           />
 
