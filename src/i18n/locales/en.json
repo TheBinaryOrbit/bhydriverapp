@@ -75,7 +75,8 @@
       "dob": "Date of birth",
       "email": "Email",
       "emailPlaceholder": "you@example.com",
-      "gender": "Gender"
+      "gender": "Gender",
+      "aadhaarLocked": "From your verified Aadhaar — can't be changed"
     },
     "gender": {
       "male": "Male",
@@ -87,6 +88,9 @@
       "subtitle": "Your Aadhaar and driving licence details.",
       "aadhar": "Aadhaar number",
       "aadharHint": "12 digits, no spaces",
+      "aadharFirstEight": "Aadhaar number",
+      "aadharFirstEightHint": "Enter the first 8 digits — we already have the last 4 from your verified Aadhaar.",
+      "aadharLastFour": "Last 4",
       "dlNumber": "Driving licence number",
       "address": "Address",
       "addressPlaceholder": "House / street, city, state",
@@ -128,6 +132,7 @@
       "genderRequired": "Please select your gender.",
       "aadharRequired": "Aadhaar number is required.",
       "aadhar": "Aadhaar number must be 12 digits.",
+      "aadharFirstEight": "Enter the first 8 digits of your Aadhaar.",
       "dlNumberRequired": "Driving licence number is required.",
       "dlNumber": "Enter a valid licence number.",
       "addressRequired": "Address is required.",
@@ -246,7 +251,8 @@
     "processingTitle": "Processing your KYC",
     "processingBody": "Hang on while we confirm your Aadhaar verification. This takes a few seconds.",
     "next": "Next",
-    "redoKyc": "Re-do KYC"
+    "redoKyc": "Re-do KYC",
+    "continueFailed": "Couldn't load your verified details. Please try again."
   },
   "content": {
     "loadFailed": "Couldn't load this page. Please check your connection."

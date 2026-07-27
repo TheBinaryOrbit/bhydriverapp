@@ -47,9 +47,16 @@ export function validateStep(
   }
 
   if (step === 1) {
-    if (!form.aadharCardNumber.trim()) {
+    // With a KYC-verified Aadhaar the field holds only the first 8 digits, so
+    // the full-length rule would never pass — check what was actually typed.
+    const aadhaarEntry = form.aadharCardNumber.trim();
+    if (!aadhaarEntry) {
       errors.aadharCardNumber = t('onboarding.errors.aadharRequired');
-    } else if (!isValidAadhaar(form.aadharCardNumber)) {
+    } else if (form.aadhaarLast4) {
+      if (!/^\d{8}$/.test(aadhaarEntry)) {
+        errors.aadharCardNumber = t('onboarding.errors.aadharFirstEight');
+      }
+    } else if (!isValidAadhaar(aadhaarEntry)) {
       errors.aadharCardNumber = t('onboarding.errors.aadhar');
     }
     if (!form.dlNumber.trim()) {
@@ -140,7 +147,8 @@ export function mapServerErrors(
     if (!item.field || !item.message) {
       return;
     }
-    const key = FIELD_ALIASES[item.field] ?? (item.field as keyof OnboardingForm);
+    const key =
+      FIELD_ALIASES[item.field] ?? (item.field as keyof OnboardingForm);
     errors[key] = item.message;
   });
   return errors;

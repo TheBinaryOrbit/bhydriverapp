@@ -21,32 +21,63 @@ import { fetchVehicleTypes, onboardDriver } from '../../services/driverService';
 import { saveSession } from '../../storage/authStorage';
 import { colors } from '../../theme/colors';
 import type { VehicleType } from '../../types/driver';
-import { dobToIso } from '../../utils/validators';
+import { dobToIso, isoToDob } from '../../utils/validators';
 import { notify } from '../../utils/notify';
 import DocumentsStep from './DocumentsStep';
 import PersonalStep from './PersonalStep';
 import VehicleStep from './VehicleStep';
-import { createEmptyForm, type FormErrors, type OnboardingForm } from './types';
+import {
+  createEmptyForm,
+  fullAadhaar,
+  type FormErrors,
+  type LockedFields,
+  type OnboardingForm,
+} from './types';
 import { mapServerErrors, validateStep } from './validate';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'DriverOnboarding'>;
 
 const TOTAL_STEPS = 3;
 
+/** The values `PersonalStep`'s selector offers — anything else can't be shown. */
+const GENDERS: string[] = ['male', 'female', 'other'];
+
 /**
- * Three-step driver registration shown when `/auth/verify` reports
- * `userStatus: 404`. Everything is submitted in one multipart call to
- * `/drivers/onboard`, which returns the JWT — no second login is needed.
+ * Three-step driver registration, reached once an un-onboarded driver clears
+ * KYC. Everything is submitted in one multipart call to `/drivers/onboard`,
+ * authorised with the token KYC issued — that call returns no token of its
+ * own, because the record it fills in already exists.
+ *
+ * The fields DigiLocker verified arrive as `prefill` and are shown locked; only
+ * name, email and the first eight Aadhaar digits are the driver's to enter.
  */
 export default function DriverOnboardingScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { phone } = route.params;
+  const { phone, token, prefill } = route.params;
 
   const [step, setStep] = useState(0);
-  const [form, setForm] = useState<OnboardingForm>(() => createEmptyForm(phone));
+  const [form, setForm] = useState<OnboardingForm>(() =>
+    createEmptyForm(phone, prefill),
+  );
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitting, setSubmitting] = useState(false);
+
+  // DigiLocker already vouched for these, so the driver only confirms them.
+  // Derived from the prefill, never from the form — reading the live form would
+  // lock a field the moment the driver typed into it. Name stays editable:
+  // the Aadhaar spelling isn't always what a rider should see.
+  // Each is locked only when the prefilled value is one the form can actually
+  // render, so an unparseable date or an unexpected gender string leaves the
+  // driver a field they can fill in rather than one they're stuck with.
+  const locked = useMemo<LockedFields>(
+    () => ({
+      phoneNumber: true,
+      dob: isoToDob(prefill?.dob) !== '',
+      gender: GENDERS.includes(prefill?.gender as string),
+    }),
+    [prefill],
+  );
 
   const [vehicleTypes, setVehicleTypes] = useState<VehicleType[]>([]);
   const [loadingTypes, setLoadingTypes] = useState(true);
@@ -105,39 +136,46 @@ export default function DriverOnboardingScreen({ navigation, route }: Props) {
   const submit = useCallback(async () => {
     setSubmitting(true);
     try {
-      const result = await onboardDriver({
-        name: form.name,
-        phoneNumber: form.phoneNumber,
-        dob: dobToIso(form.dob),
-        email: form.email,
-        gender: form.gender,
-        profileImage: form.profileImage,
+      const result = await onboardDriver(
+        {
+          name: form.name,
+          phoneNumber: form.phoneNumber,
+          dob: dobToIso(form.dob),
+          email: form.email,
+          gender: form.gender,
+          profileImage: form.profileImage,
 
-        aadharCardNumber: form.aadharCardNumber,
-        dlNumber: form.dlNumber,
-        address: form.address,
-        dlFrontImage: form.dlFrontImage,
-        dlBackImage: form.dlBackImage,
+          // The driver types only the first 8 digits when KYC supplied the
+          // rest, so re-attach them before this leaves the app.
+          aadharCardNumber: fullAadhaar(form),
+          dlNumber: form.dlNumber,
+          address: form.address,
+          dlFrontImage: form.dlFrontImage,
+          dlBackImage: form.dlBackImage,
 
-        vehicleTypeId: form.vehicleTypeId,
-        vehicleNumber: form.vehicleNumber,
-        vehicleName: form.vehicleName,
-        ownerName: form.ownerName,
-        seatingCapacity: form.seatingCapacity,
-        manufactureYear: form.manufactureYear,
-        insuranceExpiryMonth: form.insuranceExpiryMonth,
-        insuranceExpiryYear: form.insuranceExpiryYear,
-        vehicleImages: [
-          form.vehicleFrontImage,
-          form.vehicleSideImage,
-          form.vehicleBackImage,
-        ],
-        rcFrontImage: form.rcFrontImage,
-        rcBackImage: form.rcBackImage,
-      });
+          vehicleTypeId: form.vehicleTypeId,
+          vehicleNumber: form.vehicleNumber,
+          vehicleName: form.vehicleName,
+          ownerName: form.ownerName,
+          seatingCapacity: form.seatingCapacity,
+          manufactureYear: form.manufactureYear,
+          insuranceExpiryMonth: form.insuranceExpiryMonth,
+          insuranceExpiryYear: form.insuranceExpiryYear,
+          vehicleImages: [
+            form.vehicleFrontImage,
+            form.vehicleSideImage,
+            form.vehicleBackImage,
+          ],
+          rcFrontImage: form.rcFrontImage,
+          rcBackImage: form.rcBackImage,
+        },
+        token,
+      );
 
+      // `/drivers/onboard` returns no token of its own — the KYC one that
+      // authorised this call is the session from here on.
       await saveSession({
-        token: result.token,
+        token,
         phone: form.phoneNumber,
         driver: result.driver,
       });
@@ -164,7 +202,7 @@ export default function DriverOnboardingScreen({ navigation, route }: Props) {
     } finally {
       setSubmitting(false);
     }
-  }, [form, loadVehicleTypes, navigation, t]);
+  }, [form, loadVehicleTypes, navigation, t, token]);
 
   const handleNext = useCallback(() => {
     Keyboard.dismiss();
@@ -200,9 +238,9 @@ export default function DriverOnboardingScreen({ navigation, route }: Props) {
         className="flex-row items-center px-5 pb-4"
         style={{ paddingTop: insets.top + 8 }}
       >
-        <Pressable onPress={goBack} hitSlop={10} className="active:opacity-60">
+        {/* <Pressable onPress={goBack} hitSlop={10} className="active:opacity-60">
           <MaterialIcons name="arrow-back" size={24} color={colors.secondary} />
-        </Pressable>
+        </Pressable> */}
         <Text className="ml-3 flex-1 text-lg font-bold text-secondary">
           {t('onboarding.title')}
         </Text>
@@ -226,19 +264,31 @@ export default function DriverOnboardingScreen({ navigation, route }: Props) {
 
         {/* Only starred fields are mandatory — everything else is optional. */}
         <Text className="mb-4 text-xs text-muted">
-          <Text className="text-[#d92d20]">*</Text> {t('onboarding.requiredNote')}
+          <Text className="text-[#d92d20]">*</Text>{' '}
+          {t('onboarding.requiredNote')}
         </Text>
 
         {step === 0 && (
-          <PersonalStep form={form} errors={errors} onChange={handleChange} />
+          <PersonalStep
+            form={form}
+            errors={errors}
+            locked={locked}
+            onChange={handleChange}
+          />
         )}
         {step === 1 && (
-          <DocumentsStep form={form} errors={errors} onChange={handleChange} />
+          <DocumentsStep
+            form={form}
+            errors={errors}
+            locked={locked}
+            onChange={handleChange}
+          />
         )}
         {step === 2 && (
           <VehicleStep
             form={form}
             errors={errors}
+            locked={locked}
             onChange={handleChange}
             vehicleTypes={vehicleTypes}
             loadingTypes={loadingTypes}

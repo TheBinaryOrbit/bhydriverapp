@@ -1,5 +1,7 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
 
+import type { OnboardingPrefill } from '../screens/onboarding/types';
+
 export type MainTabParamList = {
   Home: undefined;
   Profile: undefined;
@@ -11,8 +13,18 @@ export type RootStackParamList = {
   Splash: undefined;
   LanguageSelect: undefined;
   Login: undefined;
-  /** Driver registration — reached once an un-onboarded driver clears KYC. */
-  DriverOnboarding: { phone: string };
+  /**
+   * Driver registration — reached only once an un-onboarded driver clears KYC.
+   *
+   * `token` comes from the KYC status response and is the session for the rest
+   * of the flow: `/drivers/onboard` fills in the record KYC created and returns
+   * no token of its own. `prefill` holds the Aadhaar-verified fields.
+   */
+  DriverOnboarding: {
+    phone: string;
+    token: string;
+    prefill?: OnboardingPrefill;
+  };
   Main: NavigatorScreenParams<MainTabParamList> | undefined;
 
   // Profile section

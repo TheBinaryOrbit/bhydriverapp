@@ -268,7 +268,7 @@ again. Once the record exists:
 | `isKycCompleted` | `true` → verified. Show **Next** |
 | `kycFailedReason` | Non-empty → verification failed, in words meant for the driver. Show it and offer **Re-do KYC** |
 | neither set | Still processing — keep polling |
-| `token` | Session token for the new driver record |
+| `token` | Session token for the new driver record. **Only sent when `isKycCompleted` is true** — a failed or pending KYC has no token |
 
 ### The confirmation window
 

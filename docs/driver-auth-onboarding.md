@@ -23,12 +23,18 @@ exists) or register (account doesn't exist)**.
         │  POST /auth/verify  { phoneNumber, otp, sessionId, fcmToken, role: "driver" }
         ▼
    HTTP 200 ─┬─ userStatus: 200  → account exists  → save `token` → Home
-             └─ userStatus: 404  → no account yet  → Registration screens
+             └─ userStatus: 404  → no account yet  → Aadhaar KYC screen
                                                           │
-                                    POST /drivers/onboard │ (multipart)
+                                    KYC creates the driver record and
+                                    hands back a `token`
+                                                          │
                                                           ▼
-                                              HTTP 201 { token, driver, vehicle }
-                                                     save `token` → Home
+                                                  Registration screens
+                                                          │
+                                    POST /drivers/onboard │ (multipart, Bearer)
+                                                          ▼
+                                            HTTP 201 { driver, vehicle }
+                                        keep the KYC `token` → Home
 ```
 
 > **Important:** a wrong/expired OTP is `400`. `userStatus: 404` inside a `200`
@@ -141,8 +147,9 @@ it's a **Driver** document.
 }
 ```
 
-➡️ Navigate to the **registration flow** (step 3 + 4). There is **no token** in
-this response.
+➡️ Navigate to **Aadhaar KYC** (see [Driver KYC](./driver-kyc.md)), not straight
+to registration. There is **no token** in this response — KYC is what creates the
+driver record and issues one, and registration then runs with it.
 
 ⚠️ Keep the verified `phoneNumber` in app state — you must send it to the
 onboarding endpoint. The phone number is *not* re-verified there, so don't let
@@ -213,11 +220,11 @@ Render only entries with `isActive: true`. Send back either the `_id` **or** the
 
 ## Step 4 — Create the driver account
 
-One multipart call creates the **driver + their first vehicle** and returns the
-JWT. There is no separate "create vehicle" step during signup.
+One multipart call completes the **driver + their first vehicle**. There is no
+separate "create vehicle" step during signup.
 
 **`POST /api/v3/drivers/onboard`**
-**`Content-Type: multipart/form-data`** (no auth header)
+**`Content-Type: multipart/form-data`** · `Authorization: Bearer <KYC token>`
 
 ### Text fields
 
@@ -259,7 +266,6 @@ All optional; **jpeg / jpg / png / webp only, max 5 MB each**.
 ```json
 {
   "message": "Driver onboarded successfully.",
-  "token": "eyJhbGciOiJIUzI1NiIs...",
   "role": "driver",
   "driver": { "_id": "66f0c1...", "name": "Ramesh Kumar", "phoneNumber": "9876543210", "...": "..." },
   "vehicle": {
@@ -274,8 +280,8 @@ All optional; **jpeg / jpg / png / webp only, max 5 MB each**.
 }
 ```
 
-➡️ Save `token` exactly as in step 2 and go to Home. **No second login call is
-needed after registering.**
+➡️ **No token comes back.** The record already existed — KYC created it — so keep
+using the token KYC issued and go to Home. No second login call is needed.
 
 ### Error responses
 
@@ -307,10 +313,14 @@ if (gender) form.append('gender', gender);
 if (profileImage) form.append('profileImage', profileImage);
 vehiclePhotos.forEach((f) => form.append('vehicleImages', f)); // up to 3
 
-const res = await fetch(`${BASE_URL}/drivers/onboard`, { method: 'POST', body: form });
+const res = await fetch(`${BASE_URL}/drivers/onboard`, {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${kycToken}` },
+  body: form,
+});
 const data = await res.json();
 if (res.status === 201) {
-  await saveToken(data.token);
+  await saveToken(kycToken);      // the response carries no token of its own
   goToHome(data.driver);
 }
 ```

@@ -10,6 +10,10 @@ import type { StepProps } from './types';
 export default function DocumentsStep({ form, errors, onChange }: StepProps) {
   const { t } = useTranslation();
 
+  // KYC gives us the last four digits masked. When we have them the driver
+  // only types the other eight, and the two halves are joined at submit.
+  const verifiedTail = form.aadhaarLast4;
+
   return (
     <View>
       <Text className="text-xl font-bold text-secondary">
@@ -20,19 +24,48 @@ export default function DocumentsStep({ form, errors, onChange }: StepProps) {
       </Text>
 
       <View className="mt-8 gap-4">
-        <FormField
-          label={t('onboarding.documents.aadhar')}
-          required
-          value={form.aadharCardNumber}
-          onChangeText={text =>
-            onChange('aadharCardNumber', text.replace(/[^0-9]/g, ''))
-          }
-          placeholder="1234 1234 1234"
-          keyboardType="number-pad"
-          maxLength={12}
-          error={errors.aadharCardNumber}
-          hint={t('onboarding.documents.aadharHint')}
-        />
+        {verifiedTail ? (
+          <View className="flex-row items-start gap-3">
+            <FormField
+              className="flex-1"
+              label={t('onboarding.documents.aadharFirstEight')}
+              required
+              value={form.aadharCardNumber}
+              onChangeText={text =>
+                onChange(
+                  'aadharCardNumber',
+                  text.replace(/[^0-9]/g, '').slice(0, 8),
+                )
+              }
+              placeholder="1234 5678"
+              keyboardType="number-pad"
+              maxLength={8}
+              error={errors.aadharCardNumber}
+              hint={t('onboarding.documents.aadharFirstEightHint')}
+            />
+            <FormField
+              className="w-24"
+              label={t('onboarding.documents.aadharLastFour')}
+              value={verifiedTail}
+              locked
+              onChangeText={() => {}}
+            />
+          </View>
+        ) : (
+          <FormField
+            label={t('onboarding.documents.aadhar')}
+            required
+            value={form.aadharCardNumber}
+            onChangeText={text =>
+              onChange('aadharCardNumber', text.replace(/[^0-9]/g, ''))
+            }
+            placeholder="1234 1234 1234"
+            keyboardType="number-pad"
+            maxLength={12}
+            error={errors.aadharCardNumber}
+            hint={t('onboarding.documents.aadharHint')}
+          />
+        )}
 
         <FormField
           label={t('onboarding.documents.dlNumber')}

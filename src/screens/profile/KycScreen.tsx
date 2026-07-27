@@ -25,6 +25,7 @@ import {
   fetchContentList,
   getCachedContentList,
 } from '../../services/contentService';
+import { fetchMe } from '../../services/driverService';
 import {
   PHONE_CONFIRM_SECONDS,
   fetchKycStatusByPhone,
@@ -278,6 +279,7 @@ function SignupKyc({ phone, navigation }: { phone: string; navigation: Nav }) {
   const [sessionUrl, setSessionUrl] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [continuing, setContinuing] = useState(false);
 
   const finished = useRef(false);
 
@@ -360,6 +362,42 @@ function SignupKyc({ phone, navigation }: { phone: string; navigation: Nav }) {
   const backToLogin = useCallback(() => {
     navigation.replace('Login');
   }, [navigation]);
+
+  /**
+   * KYC created the driver record from the Aadhaar data, so registration starts
+   * from what the backend already knows: read it here and hand the verified
+   * fields to the form, which shows them locked.
+   */
+  const handleNext = useCallback(async () => {
+    if (continuing) {
+      return;
+    }
+    const token = status?.token;
+    if (!token) {
+      // Verified but no token means the record isn't fully written yet.
+      notify(t('kyc.continueFailed'));
+      return;
+    }
+
+    setContinuing(true);
+    try {
+      const me = await fetchMe(token);
+      navigation.replace('DriverOnboarding', {
+        phone,
+        token,
+        prefill: {
+          name: me.name,
+          dob: me.dob,
+          gender: me.gender,
+          aadharCardNumber: me.aadharCardNumber,
+        },
+      });
+    } catch {
+      notify(t('kyc.continueFailed'));
+    } finally {
+      setContinuing(false);
+    }
+  }, [continuing, navigation, phone, status?.token, t]);
 
   if (loading) {
     return (
@@ -462,10 +500,8 @@ function SignupKyc({ phone, navigation }: { phone: string; navigation: Nav }) {
           <PrimaryButton
             label={t('kyc.next')}
             icon="arrow-forward"
-            // TODO: destination still to be decided — registration is what the
-            // 404 from `/auth/verify` used to lead to, so it stands in for now.
-            // `status.token` is available here once that decision lands.
-            onPress={() => navigation.replace('DriverOnboarding', { phone })}
+            onPress={handleNext}
+            loading={continuing}
           />
         ) : (
           <PrimaryButton

@@ -132,7 +132,11 @@ export type PhoneKycStatus = {
   isKycCompleted: boolean;
   kycDetails?: KycDetails;
   kycFailedReason?: string | null;
-  /** Session token, issued once the driver record exists. */
+  /**
+   * Session token — present **only** when `isKycCompleted` is true. A failed or
+   * still-pending KYC comes back without one, so never reach for it to decide
+   * anything; branch on `isKycCompleted` and read this after.
+   */
   token?: string;
 };
 

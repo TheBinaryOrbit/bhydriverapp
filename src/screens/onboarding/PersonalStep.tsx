@@ -9,8 +9,14 @@ import { formatDobInput } from '../../utils/validators';
 import type { StepProps } from './types';
 
 /** Step 1 — name, verified phone, DOB, email, gender and profile photo. */
-export default function PersonalStep({ form, errors, onChange }: StepProps) {
+export default function PersonalStep({
+  form,
+  errors,
+  locked,
+  onChange,
+}: StepProps) {
   const { t } = useTranslation();
+  const aadhaarHint = t('onboarding.personal.aadhaarLocked');
 
   return (
     <View>
@@ -49,13 +55,15 @@ export default function PersonalStep({ form, errors, onChange }: StepProps) {
           value={form.phoneNumber}
           locked
           hint={t('onboarding.personal.phoneHint')}
-          onChangeText={() => { }}
+          onChangeText={() => {}}
         />
 
         <FormField
           label={t('onboarding.personal.dob')}
           required
           value={form.dob}
+          locked={locked.dob}
+          hint={locked.dob ? aadhaarHint : undefined}
           onChangeText={text => onChange('dob', formatDobInput(text))}
           placeholder="DD/MM/YYYY"
           keyboardType="number-pad"
@@ -77,6 +85,8 @@ export default function PersonalStep({ form, errors, onChange }: StepProps) {
           label={t('onboarding.personal.gender')}
           required
           value={form.gender}
+          locked={locked.gender}
+          hint={locked.gender ? aadhaarHint : undefined}
           onChange={value => onChange('gender', value)}
           error={errors.gender}
           options={[

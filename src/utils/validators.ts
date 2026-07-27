@@ -16,6 +16,16 @@ export function formatDobInput(text: string): string {
   return `${day}/${month}/${year}`;
 }
 
+/**
+ * `YYYY-MM-DD` (or a full ISO timestamp) → the `DD/MM/YYYY` mask; `''` when
+ * there is nothing parseable. The date part is taken literally rather than
+ * through `Date`, so a timestamp never shifts a birthday across a timezone.
+ */
+export function isoToDob(iso?: string | null): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso?.trim() ?? '');
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : '';
+}
+
 /** `DD/MM/YYYY` → `YYYY-MM-DD`, or `undefined` when incomplete/invalid. */
 export function dobToIso(masked: string): string | undefined {
   if (!isValidDob(masked)) {
@@ -57,6 +67,18 @@ export function isValidAadhaar(value: string): boolean {
   return /^\d{12}$/.test(value.replace(/\s/g, ''));
 }
 
+/**
+ * The trailing four digits of an Aadhaar the backend returns **masked**, e.g.
+ * `XXXXXXXX9518`. `''` when there is no number, or none ending in four digits.
+ *
+ * Also correct for an unmasked number: the driver then re-types the first eight
+ * and the last four still match.
+ */
+export function aadhaarLast4(value?: string | null): string {
+  const match = /(\d{4})$/.exec(value?.trim() ?? '');
+  return match ? match[1] : '';
+}
+
 /** e.g. `BR01AB1234` — 2 letters, 1-2 digits, 1-3 letters, 1-4 digits. */
 export function isValidVehicleNumber(value: string): boolean {
   return /^[A-Z]{2}\d{1,2}[A-Z]{0,3}\d{1,4}$/.test(
@@ -71,7 +93,9 @@ export function isValidYear(value: string): boolean {
 
 export function isValidExpiryYear(value: string): boolean {
   const year = Number(value);
-  return /^\d{4}$/.test(value) && year >= currentYear() && year <= currentYear() + 30;
+  return (
+    /^\d{4}$/.test(value) && year >= currentYear() && year <= currentYear() + 30
+  );
 }
 
 export function isValidMonth(value: string): boolean {

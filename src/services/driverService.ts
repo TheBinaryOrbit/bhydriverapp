@@ -1,5 +1,10 @@
 import { API, apiError, apiUrl, bearer } from './api';
-import type { Driver, PickedImage, Vehicle, VehicleType } from '../types/driver';
+import type {
+  Driver,
+  PickedImage,
+  Vehicle,
+  VehicleType,
+} from '../types/driver';
 
 export type OnboardPayload = {
   // Step 1 — personal
@@ -32,8 +37,13 @@ export type OnboardPayload = {
   rcBackImage?: PickedImage | null;
 };
 
+/**
+ * `201 { message, role, driver, vehicle }`.
+ *
+ * No token comes back — the driver already has one from KYC, which is what
+ * created the record this call fills in. Keep using that one.
+ */
 export type OnboardResult = {
-  token: string;
   driver: Driver;
   vehicle: Vehicle;
 };
@@ -61,11 +71,11 @@ export async function fetchVehicleTypes(): Promise<VehicleType[]> {
  */
 export async function onboardDriver(
   payload: OnboardPayload,
+  token: string,
 ): Promise<OnboardResult> {
   if (API.useMock) {
     await delay(1200);
     return {
-      token: 'mock-token',
       driver: {
         _id: `mock-driver-${payload.phoneNumber}`,
         name: payload.name,
@@ -114,14 +124,15 @@ export async function onboardDriver(
   // Don't set Content-Type — the boundary has to come from the HTTP client.
   const res = await fetch(apiUrl(API.endpoints.driverOnboard), {
     method: 'POST',
+    headers: bearer(token),
     body: form,
   });
 
   const data = await res.json().catch(() => null);
-  if (res.status !== 201 || !data?.token) {
+  if (res.status !== 201 || !data?.driver) {
     throw apiError(data, res.status, 'Failed to onboard driver');
   }
-  return { token: data.token, driver: data.driver, vehicle: data.vehicle };
+  return { driver: data.driver, vehicle: data.vehicle };
 }
 
 /** The logged-in driver's profile. Use on launch to refresh the cache. */
