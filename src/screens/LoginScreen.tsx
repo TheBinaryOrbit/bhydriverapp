@@ -107,8 +107,9 @@ export default function LoginScreen({ navigation }: Props) {
         });
         navigation.replace('Main');
       } else if (result.userStatus === 404) {
-        // OTP was correct, the driver just isn't registered yet.
-        navigation.replace('DriverOnboarding', { phone });
+        // OTP was correct, the driver just isn't registered yet — KYC comes
+        // first and is what creates the account, so registration follows it.
+        navigation.replace('Kyc', { phone });
       } else {
         notify(t('otp.verifyFailed'));
       }

@@ -237,10 +237,16 @@
     "justVerified": "Aadhaar verified successfully.",
     "stillProcessing": "Verification is still processing. This can take a moment — try again shortly, and contact support if it keeps failing.",
     "failedTitle": "Verification failed",
+    "statusFailedBody": "We couldn't verify your Aadhaar. You can start the verification again.",
     "referenceId": "Reference id",
     "contactSupport": "Contact support",
     "startFailed": "Verification is unavailable right now. Please try again later.",
-    "webviewFailed": "Couldn't load the verification page. Please try again."
+    "webviewFailed": "Couldn't load the verification page. Please try again.",
+    "statusFailed": "Couldn't check your verification status. Pull down to refresh.",
+    "processingTitle": "Processing your KYC",
+    "processingBody": "Hang on while we confirm your Aadhaar verification. This takes a few seconds.",
+    "next": "Next",
+    "redoKyc": "Re-do KYC"
   },
   "content": {
     "loadFailed": "Couldn't load this page. Please check your connection."

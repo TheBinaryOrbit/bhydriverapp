@@ -12,8 +12,16 @@ export const API = {
     vehicleTypes: '/vehicle-types',
     driverOnboard: '/drivers/onboard',
     driverMe: '/drivers/me',
-    /** Starts a Signzy DigiLocker session. Empty body — driver comes from the token. */
+    /**
+     * Starts a Signzy DigiLocker session. Body: `{ phoneNumber }`.
+     *
+     * Serves both entry points — the pre-signup flow runs before any account
+     * (and so any token) exists, which is why the phone number, not the token,
+     * identifies the driver.
+     */
     kycVerify: '/drivers/kyc/verify',
+    /** KYC result for a phone number. Append `/:phoneNumber`. */
+    kycStatusByPhone: '/drivers/kyc/status',
     myVehicles: '/vehicles/my',
     vehicles: '/vehicles',
     myPaymentDetails: '/payment-details/my',

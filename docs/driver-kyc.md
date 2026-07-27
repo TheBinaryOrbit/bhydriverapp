@@ -7,8 +7,26 @@ Related: [Driver Login & Onboarding](./driver-auth-onboarding.md) ·
 [Profile, Vehicle & Payments](./driver-profile-and-payments.md)
 
 - **Base URL:** `http://localhost:5000/api/v3` (dev)
-- Requires a logged-in **driver** token: `Authorization: Bearer <token>`
-- KYC is **not** part of signup — the driver registers first, then verifies.
+
+---
+
+## Two entry points
+
+The same DigiLocker flow is reached from two places, and they identify the
+driver differently:
+
+| Entry | Identity | Endpoints |
+| ----- | -------- | --------- |
+| **Pre-signup** — OTP was correct but `/auth/verify` returned `userStatus: 404` | The **phone number** just OTP-verified | `POST /drivers/kyc/verify` · `GET /drivers/kyc/status/:phoneNumber` |
+| **Profile** — a signed-in driver who hasn't verified yet | Bearer **token**, plus the same body | `POST /drivers/kyc/verify` · `GET /drivers/me` |
+
+`POST /drivers/kyc/verify` serves both: it takes `{ phoneNumber }` either way and
+the token is only added when there is one.
+
+Steps 1–4 below describe the **profile** flow. The pre-signup flow is the same
+three moves — start, watch the WebView, confirm — against the phone-keyed
+endpoints; see [Pre-signup KYC](#pre-signup-kyc-by-phone-number) for what
+differs.
 
 ---
 
@@ -22,7 +40,8 @@ There are two callbacks in this flow and **only one of them involves your app**:
 | `successRedirectUrl` / `failureRedirectUrl` | The **browser/WebView** after the driver finishes | Detect the redirect, close the WebView, then poll for status |
 
 The redirect tells you the driver *finished the screen*. It does **not** tell you
-the verification was recorded. Only `GET /drivers/me` does that.
+the verification was recorded — only a status read does that (`GET /drivers/me`,
+or `GET /kyc/status/:phoneNumber` before an account exists).
 
 ---
 
@@ -53,9 +72,7 @@ the verification was recorded. Only `GET /drivers/me` does that.
 
 ## Step 1 — Start KYC
 
-**`POST /api/v3/drivers/kyc/verify`** · Bearer token · **empty body**
-
-The driver is taken from the token, so there is nothing to send.
+**`POST /api/v3/drivers/kyc/verify`** · Bearer token · body `{ phoneNumber }`
 
 ### Success — `200`
 
@@ -78,7 +95,8 @@ URL every time** the driver taps the button; never cache or reuse one.
 ```js
 const res = await fetch(`${BASE_URL}/drivers/kyc/verify`, {
   method: 'POST',
-  headers: { Authorization: `Bearer ${token}` },
+  headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ phoneNumber }),
 });
 const data = await res.json();
 if (!res.ok) return showError("Couldn't start verification. Please try again.");
@@ -205,6 +223,64 @@ driver may have completed KYC on another device.
 
 ---
 
+## Pre-signup KYC (by phone number)
+
+When `/auth/verify` accepts the OTP but reports `userStatus: 404`, there is no
+account and therefore no token — yet KYC is what **creates** the driver record,
+so it runs before registration. The app sends the driver to the KYC screen with
+the phone number and everything below is keyed on it.
+
+### Start — `POST /api/v3/drivers/kyc/verify`
+
+The same endpoint as the profile flow, minus the `Authorization` header. Body:
+
+```json
+{ "phoneNumber": "9876543210" }
+```
+
+Returns `{ "redirectUrl": "..." }`. Same rules: open it immediately, never reuse
+a session.
+
+### Confirm — `GET /api/v3/drivers/kyc/status/:phoneNumber`
+
+No auth. **Not yet created** — the callback hasn't landed, or the driver never
+finished:
+
+```json
+{ "kycStatus": "not_found", "message": "Driver not found" }
+```
+
+This is a normal waiting state, **not** an error — keep counting down and check
+again. Once the record exists:
+
+```json
+{
+  "driverId": "66f0c1...",
+  "isKycCompleted": true,
+  "kycDetails": { "requestId": "req_abc123", "status": "success" },
+  "kycFailedReason": null,
+  "token": "<session token>"
+}
+```
+
+| Field | Meaning |
+| ----- | ------- |
+| `isKycCompleted` | `true` → verified. Show **Next** |
+| `kycFailedReason` | Non-empty → verification failed, in words meant for the driver. Show it and offer **Re-do KYC** |
+| neither set | Still processing — keep polling |
+| `token` | Session token for the new driver record |
+
+### The confirmation window
+
+After the WebView hits the redirect URL the app closes it and shows a **10-second
+circular countdown** ("Processing your KYC") while polling at `t = 0s, 5s, 10s`.
+Only a verified or a failed result ends it early; `not_found` just keeps the
+timer running. If the window closes with neither, fall back to the same neutral
+"still processing" state the profile flow uses — with Retry and Contact Support —
+never a hard failure.
+
+---
+
 ## Errors & edge cases
 
 ### The driver's Aadhaar is already linked to another account
@@ -241,16 +317,20 @@ WebViews.
 
 | Method | Path | Auth | Body | Who calls it |
 | ------ | ---- | ---- | ---- | ------------ |
-| `POST` | `/drivers/kyc/verify` | Bearer (driver) | none | **The app** |
+| `POST` | `/drivers/kyc/verify` | Bearer (driver) | `{ phoneNumber }` | **The app** (profile flow) |
 | `GET` | `/drivers/me` | Bearer (driver) | — | **The app** (poll for `isKycCompleted`) |
+| `POST` | `/drivers/kyc/verify` | none | `{ phoneNumber }` | **The app** (pre-signup flow) |
+| `GET` | `/drivers/kyc/status/:phoneNumber` | none | — | **The app** (poll before an account exists) |
 | `POST` | `/drivers/kyc/callback/:driverId` | none | Signzy payload | **Signzy only — never the app** |
 
 ## Gotchas
 
-1. **`POST /drivers/kyc/verify` takes no body.** Don't send a driver id; it comes
-   from the token and a body would be ignored.
-2. **The redirect ≠ success.** Always confirm with `GET /drivers/me`.
+1. **`POST /drivers/kyc/verify` needs `{ phoneNumber }`** in the body, token or
+   no token.
+2. **The redirect ≠ success.** Always confirm with a status read.
 3. **Success and failure redirect URLs may be identical** — don't branch on them.
+   Match them on **host**, not as a raw string prefix: a trailing slash, a query
+   string or a `www.` would otherwise slip past and leave the WebView open.
 4. **Poll with backoff.** A single immediate check races the provider callback.
 5. **Never call the `/kyc/callback/` endpoint.** It's an unauthenticated webhook
    for Signzy; calling it from the app would be both wrong and a security issue
