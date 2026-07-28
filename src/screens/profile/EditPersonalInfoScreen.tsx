@@ -247,6 +247,7 @@ export default function EditPersonalInfoScreen({ navigation }: Props) {
             placeholder="DD/MM/YYYY"
             keyboardType="number-pad"
             maxLength={10}
+            locked
             error={errors.dob}
           />
 
@@ -254,6 +255,7 @@ export default function EditPersonalInfoScreen({ navigation }: Props) {
             label={t('onboarding.personal.gender')}
             value={values.gender}
             onChange={value => update('gender', value)}
+            locked
             options={[
               {
                 value: 'male',
@@ -296,6 +298,7 @@ export default function EditPersonalInfoScreen({ navigation }: Props) {
             placeholder="1234 1234 1234"
             keyboardType="number-pad"
             maxLength={12}
+            locked
             error={errors.aadharCardNumber}
           />
 
@@ -306,6 +309,7 @@ export default function EditPersonalInfoScreen({ navigation }: Props) {
             placeholder="BR01 20200001234"
             autoCapitalize="characters"
             error={errors.dlNumber}
+
           />
 
           <ImageUpload
