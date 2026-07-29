@@ -99,6 +99,19 @@ export type PaymentDetails = {
   updatedAt?: string;
 };
 
+/**
+ * The payee block embedded in other responses (currently the ride-completion
+ * one). Same record as `PaymentDetails`, but read-only and spelled `upi`
+ * there against `upiId` on `/payment-details` — never read the field directly,
+ * go through `upiIdOf` in `utils/upi`.
+ */
+export type RidePaymentDetails = {
+  _id?: string;
+  driverId?: string;
+  upi?: string;
+  upiId?: string;
+};
+
 /** Row of `GET /app-content/driver` — the menu list, without the HTML body. */
 export type AppContentSummary = {
   _id: string;

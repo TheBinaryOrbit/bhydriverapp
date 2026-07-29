@@ -1,6 +1,8 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
 
 import type { OnboardingPrefill } from '../screens/onboarding/types';
+import type { RidePaymentDetails } from '../types/driver';
+import type { QuickRide } from '../types/quickRide';
 
 export type MainTabParamList = {
   Home: undefined;
@@ -43,6 +45,29 @@ export type RootStackParamList = {
   Kyc: { phone: string } | undefined;
   /** Server-rendered content page — `slug` also accepts the page `_id`. */
   ContentPage: { slug: string; title: string };
+
+  // QuickRide
+  /**
+   * The live ride. Navigation is always by `rideId`; `ride` is the copy that
+   * came with `bid:accepted`, passed only so the screen has something to paint
+   * while `GET /quick-rides/:id` — the actual source of truth — is in flight.
+   */
+  RideDetails: { rideId: string; ride?: QuickRide };
+  /**
+   * Trip closed. `finalFare` is what the driver earned — and what the UPI QR
+   * on that screen collects.
+   *
+   * `paymentDetails` rides along from the completion response so the QR paints
+   * immediately; the screen falls back to `GET /payment-details/my` when it is
+   * missing, which is the case on the `ride:completed` socket path.
+   */
+  RideSuccess: {
+    rideId: string;
+    finalFare?: number;
+    completedAt?: string;
+    dropLocationName?: string;
+    paymentDetails?: RidePaymentDetails;
+  };
 };
 
 declare global {

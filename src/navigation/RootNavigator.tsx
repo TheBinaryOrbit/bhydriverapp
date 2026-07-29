@@ -14,6 +14,8 @@ import EditVehicleScreen from '../screens/profile/EditVehicleScreen';
 import ManagePaymentScreen from '../screens/profile/ManagePaymentScreen';
 import KycScreen from '../screens/profile/KycScreen';
 import ContentPageScreen from '../screens/profile/ContentPageScreen';
+import RideDetailsScreen from '../screens/quickride/RideDetailsScreen';
+import RideSuccessScreen from '../screens/quickride/RideSuccessScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -51,6 +53,15 @@ export default function RootNavigator() {
         <Stack.Screen name="ManagePayment" component={ManagePaymentScreen} />
         <Stack.Screen name="Kyc" component={KycScreen} />
         <Stack.Screen name="ContentPage" component={ContentPageScreen} />
+
+        {/* QuickRide — the live ride, pushed over the tabs. Success replaces
+            details, so a back swipe can't reach a ride that is already over. */}
+        <Stack.Screen name="RideDetails" component={RideDetailsScreen} />
+        <Stack.Screen
+          name="RideSuccess"
+          component={RideSuccessScreen}
+          options={{ gestureEnabled: false }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

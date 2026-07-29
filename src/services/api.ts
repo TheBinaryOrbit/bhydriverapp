@@ -28,6 +28,20 @@ export const API = {
     paymentDetails: '/payment-details',
     /** Driver-app content pages; append `/:idOrSlug` for a single page. */
     appContent: '/app-content/driver',
+
+    // QuickRide — see `docs/driver-quick-ride.md`.
+    /** Role-aware "where was I?" resume call. Takes `?latitude&longitude`. */
+    quickRidesLive: '/quick-rides/live',
+    /** Polling fallback for the ride cards when the socket is down. */
+    quickRidesAvailable: '/quick-rides/available',
+    /** Ride history, newest first. */
+    quickRidesMy: '/quick-rides/my',
+    /** Append `/:id`, plus `/start`, `/complete` or `/cancel`. */
+    quickRides: '/quick-rides',
+    /** `POST` to place or lower a bid. */
+    quickRideBids: '/quick-ride-bids',
+    /** Live bids only — used to rebuild "bid pending" state on resume. */
+    quickRideBidsMy: '/quick-ride-bids/my',
   },
   /**
    * URLs Signzy redirects the KYC WebView to when the driver finishes.
@@ -48,6 +62,22 @@ export const API = {
 
 export function apiUrl(endpoint: string): string {
   return `${API.baseUrl}${endpoint}`;
+}
+
+/**
+ * Origin of the realtime server — the same host as the REST API, without the
+ * `/api/v3` prefix. Derived rather than configured so the two can never drift
+ * when the dev tunnel changes.
+ */
+export const SOCKET_URL: string = API.baseUrl.replace(/\/api\/v\d+\/?$/, '');
+
+/** `?latitude=..&longitude=..`, or `''` when GPS isn't ready yet. */
+export function locationQuery(
+  location?: { latitude: number; longitude: number } | null,
+): string {
+  return location
+    ? `?latitude=${location.latitude}&longitude=${location.longitude}`
+    : '';
 }
 
 /** Authorization header for the driver-only routes. */

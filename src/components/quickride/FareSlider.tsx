@@ -1,0 +1,216 @@
+import React, { useMemo, useRef, useState } from 'react';
+import {
+  PanResponder,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+
+import { colors, navyGradient } from '../../theme/colors';
+import { rupees } from './format';
+
+type Props = {
+  /** `bidBounds.min` — the server rejects anything below it. */
+  min: number;
+  /** `bidBounds.max`. */
+  max: number;
+  value: number;
+  onChange: (value: number) => void;
+  /** Rupee granularity of the drag and the stepper buttons. */
+  step?: number;
+  disabled?: boolean;
+};
+
+/**
+ * The bid slider, built on `PanResponder` because the project carries no
+ * slider dependency.
+ *
+ * The gesture works off `dx` from the value captured on touch-down rather than
+ * absolute page coordinates, so it stays accurate inside a modal without
+ * measuring the track's position on screen.
+ */
+export default function FareSlider({
+  min,
+  max,
+  value,
+  onChange,
+  step = 10,
+  disabled = false,
+}: Props) {
+  const [width, setWidth] = useState(0);
+
+  const widthRef = useRef(0);
+  const startRef = useRef(value);
+  const changeRef = useRef(onChange);
+  changeRef.current = onChange;
+  const rangeRef = useRef({ min, max, step });
+  rangeRef.current = { min, max, step };
+
+  const clampToStep = (raw: number) => {
+    const { min: lo, max: hi, step: grain } = rangeRef.current;
+    const snapped = Math.round(raw / grain) * grain;
+    return Math.min(Math.max(snapped, lo), hi);
+  };
+
+  const responder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => !disabled,
+        onMoveShouldSetPanResponder: () => !disabled,
+
+        // A tap anywhere on the track jumps there; `locationX` is relative to
+        // the track because the track is the responder.
+        onPanResponderGrant: event => {
+          const track = widthRef.current;
+          if (!track) {
+            return;
+          }
+          const { min: lo, max: hi } = rangeRef.current;
+          const ratio = Math.min(
+            Math.max(event.nativeEvent.locationX / track, 0),
+            1,
+          );
+          const next = clampToStep(lo + ratio * (hi - lo));
+          startRef.current = next;
+          changeRef.current(next);
+        },
+
+        onPanResponderMove: (_event, gesture) => {
+          const track = widthRef.current;
+          if (!track) {
+            return;
+          }
+          const { min: lo, max: hi } = rangeRef.current;
+          const delta = (gesture.dx / track) * (hi - lo);
+          changeRef.current(clampToStep(startRef.current + delta));
+        },
+      }),
+    // `disabled` is the only thing the responder itself branches on; every
+    // other input is read through a ref so the gesture never goes stale.
+    [disabled],
+  );
+
+  const span = Math.max(max - min, 1);
+  const ratio = Math.min(Math.max((value - min) / span, 0), 1);
+  const filled = width * ratio;
+
+  const nudge = (direction: 1 | -1) => {
+    if (disabled) {
+      return;
+    }
+    onChange(clampToStep(value + direction * step));
+  };
+
+  return (
+    <View>
+      <View className="flex-row items-center">
+        <StepButton
+          icon="remove"
+          onPress={() => nudge(-1)}
+          disabled={disabled || value <= min}
+        />
+
+        <View className="mx-4 flex-1 items-center">
+          <Text className="text-3xl font-extrabold text-secondary">
+            {rupees(value)}
+          </Text>
+        </View>
+
+        <StepButton
+          icon="add"
+          onPress={() => nudge(1)}
+          disabled={disabled || value >= max}
+        />
+      </View>
+
+      <View
+        className="mt-5 justify-center"
+        style={styles.hitArea}
+        onLayout={event => {
+          const next = event.nativeEvent.layout.width;
+          widthRef.current = next;
+          setWidth(next);
+        }}
+        {...responder.panHandlers}
+      >
+        <View className="h-2 rounded-full bg-border" />
+
+        <LinearGradient
+          colors={navyGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={[styles.fill, { width: filled }]}
+        />
+
+        <View
+          style={[
+            styles.knob,
+            // Half the knob, so its centre tracks the value rather than its edge.
+            { left: Math.max(filled - 14, 0) },
+            disabled ? styles.knobDisabled : null,
+          ]}
+        />
+      </View>
+
+      <View className="mt-3 flex-row justify-between">
+        <Text className="text-xs font-semibold text-muted">{rupees(min)}</Text>
+        <Text className="text-xs font-semibold text-muted">{rupees(max)}</Text>
+      </View>
+    </View>
+  );
+}
+
+function StepButton({
+  icon,
+  onPress,
+  disabled,
+}: {
+  icon: string;
+  onPress: () => void;
+  disabled: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      hitSlop={8}
+      className={`h-11 w-11 items-center justify-center rounded-full border border-border ${
+        disabled ? 'opacity-40' : 'active:bg-surface'
+      }`}
+    >
+      <MaterialIcons name={icon} size={22} color={colors.secondary} />
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  /** Taller than the track so the thumb is comfortable to grab. */
+  hitArea: {
+    height: 36,
+  },
+  fill: {
+    position: 'absolute',
+    height: 8,
+    borderRadius: 4,
+  },
+  knob: {
+    position: 'absolute',
+    height: 28,
+    width: 28,
+    borderRadius: 14,
+    backgroundColor: colors.primary,
+    borderWidth: 3,
+    borderColor: colors.tertiary,
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  knobDisabled: {
+    borderColor: colors.indicatorBorder,
+  },
+});
