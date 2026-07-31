@@ -49,7 +49,7 @@ import {
   type QuickRide,
   type RideStatus,
 } from '../../types/quickRide';
-import { callNumber, navigateTo } from '../../utils/maps';
+import { callNumber } from '../../utils/maps';
 import { notify } from '../../utils/notify';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'RideDetails'>;
@@ -181,15 +181,29 @@ export default function RideDetailsScreen({ navigation, route }: Props) {
     [ride?.dropCoordinates, ride?.pickupCoordinates, status],
   );
 
-  const handleNavigate = useCallback(async () => {
+  // Guidance runs inside the app, on the Navigation SDK. There is no hand-off
+  // to the phone's Maps app at all — leaving the app mid-trip is what stops the
+  // driver seeing the OTP and complete steps.
+  const handleNavigate = useCallback(() => {
     if (!target) {
       notify(t('ride.noCoordinates'));
       return;
     }
-    if (!(await navigateTo(target))) {
-      notify(t('ride.mapsFailed'));
-    }
-  }, [t, target]);
+    navigation.navigate('Navigate', {
+      destination: target,
+      title:
+        (status === 'assigned'
+          ? ride?.pickupLocationName
+          : ride?.dropLocationName) ?? t('ride.destination'),
+    });
+  }, [
+    navigation,
+    ride?.dropLocationName,
+    ride?.pickupLocationName,
+    status,
+    t,
+    target,
+  ]);
 
   const handleCall = useCallback(async () => {
     if (!(await callNumber(ride?.bookedBy?.phoneNumber))) {

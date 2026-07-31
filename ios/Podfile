@@ -1,3 +1,5 @@
+require 'pathname'
+
 # Resolve react_native_pods.rb with node to allow for hoisting
 require Pod::Executable.execute_command('node', ['-p',
   'require.resolve(
@@ -5,7 +7,9 @@ require Pod::Executable.execute_command('node', ['-p',
     {paths: [process.argv[1]]},
   )', __dir__]).strip
 
-platform :ios, min_ios_version_supported
+# The Navigation SDK's GoogleNavigation pod requires iOS 16 — above whatever
+# `min_ios_version_supported` currently is, so it is pinned rather than derived.
+platform :ios, '16.0'
 prepare_react_native_project!
 
 linkage = ENV['USE_FRAMEWORKS']
@@ -30,5 +34,27 @@ target 'bhy' do
       :mac_catalyst_enabled => false,
       # :ccache_enabled => true
     )
+
+    # The Maps / Navigation SDK key must not sit in the committed Info.plist, so
+    # `GMSApiKey` there is `$(MAPS_API_KEY)` and the value has to arrive as a
+    # build setting. CocoaPods owns the app target's base configuration, which
+    # leaves the xcconfig it generates as the only place to inject one — hence
+    # appending here, after generation, on every `pod install`.
+    #
+    # `#include?` is the optional form: a checkout without Secrets.xcconfig
+    # still builds, and AppDelegate logs that navigation will not authorise.
+    secrets = Pathname.new(File.expand_path('Secrets.xcconfig', __dir__))
+    installer.aggregate_targets.each do |aggregate_target|
+      aggregate_target.user_build_configurations.each_key do |config_name|
+        xcconfig = Pathname.new(aggregate_target.xcconfig_path(config_name))
+        next unless xcconfig.exist?
+
+        relative = secrets.relative_path_from(xcconfig.dirname)
+        line = %(#include? "#{relative}")
+        next if xcconfig.read.include?(line)
+
+        xcconfig.open('a') { |file| file.puts("\n#{line}") }
+      end
+    end
   end
 end

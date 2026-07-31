@@ -72,6 +72,33 @@ def enableProguardInReleaseBuilds = false
  */
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
+/**
+ * Google Maps / Navigation SDK key.
+ *
+ * Put it in `android/local.properties` — which is gitignored — as:
+ *
+ *     MAPS_API_KEY=AIza...
+ *
+ * or export `MAPS_API_KEY` in the environment, which is how CI supplies it.
+ * There is deliberately no fallback literal here: a key committed to the repo
+ * is a key that has to be rotated. A checkout without one still builds, and
+ * fails at runtime with "In-app navigation isn't enabled for this app yet" —
+ * see `NavigationScreen`.
+ */
+def mapsApiKey = ""
+def localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    def localProperties = new Properties()
+    localPropertiesFile.withInputStream { localProperties.load(it) }
+    mapsApiKey = localProperties.getProperty("MAPS_API_KEY", "")
+}
+if (!mapsApiKey) {
+    mapsApiKey = System.getenv("MAPS_API_KEY") ?: ""
+}
+if (!mapsApiKey) {
+    logger.warn("MAPS_API_KEY is not set (android/local.properties or environment) — maps and in-app navigation will not authorise.")
+}
+
 android {
     ndkVersion rootProject.ext.ndkVersion
     buildToolsVersion rootProject.ext.buildToolsVersion
@@ -84,6 +111,15 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
+        // Injected into AndroidManifest.xml as `com.google.android.geo.API_KEY`.
+        manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
+    }
+
+    compileOptions {
+        // The Navigation SDK requires desugaring regardless of minSdkVersion.
+        coreLibraryDesugaringEnabled true
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
     signingConfigs {
         debug {
@@ -110,6 +146,9 @@ android {
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
+
+    // Required by the Navigation SDK — see `coreLibraryDesugaringEnabled` above.
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.0.4")
 
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")

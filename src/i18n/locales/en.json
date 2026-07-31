@@ -180,6 +180,8 @@
     "reconnectingBody": "Your spot is held for a few minutes. Hang tight.",
     "goOnline": "Go online",
     "goOffline": "Go offline",
+    "dutyLocked": "On a ride",
+    "dutyLockedBody": "Sharing your location with the rider until this ride is finished.",
     "retry": "Try again",
 
     "emptyTitle": "You're offline",
@@ -247,6 +249,52 @@
     "point3": "Fares agreed up front, no bidding",
     "comingSoon": "Coming soon"
   },
+  "history": {
+    "title": "Your rides",
+    "subtitle": "Everything you've driven, newest first.",
+    "count_one": "{{count}} ride",
+    "count_other": "{{count}} rides",
+    "earned": "you earned",
+    "fare": "fare",
+    "status": {
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "expired": "Expired",
+      "in_progress": "In progress",
+      "assigned": "Assigned",
+      "searching": "Searching"
+    },
+    "cancelledByYou": "Cancelled by you",
+    "emptyTitle": "No rides yet",
+    "emptyBody": "Once you finish your first ride it'll show up here with what you earned.",
+    "errorTitle": "Couldn't load your rides",
+    "retry": "Try again",
+    "noMatchTitle": "No rides match",
+    "noMatchBody": "Nothing here for the period and statuses you picked. Widen the filter to see more.",
+    "filter": {
+      "title": "Filter rides",
+      "statusLabel": "Status",
+      "statusHint": "Leave all unpicked to see every status.",
+      "allStatuses": "All rides",
+      "statusCount_one": "{{count}} status",
+      "statusCount_other": "{{count}} statuses",
+      "dateLabel": "Period",
+      "presets": {
+        "all": "All time",
+        "today": "Today",
+        "yesterday": "Yesterday",
+        "last7": "Last 7 days",
+        "thisMonth": "This month",
+        "lastMonth": "Last month"
+      },
+      "clear": "Clear",
+      "clearAll": "Clear filters",
+      "reset": "Reset",
+      "apply": "Apply"
+    },
+    "outstationTitle": "No outstation history",
+    "outstationBody": "Outstation trips aren't live yet. When they are, the ones you've driven will be listed here."
+  },
   "ride": {
     "title": "Your ride",
     "titlePickup": "Pick up the rider",
@@ -261,7 +309,6 @@
     "navigatePickup": "Navigate to pickup",
     "navigateDrop": "Navigate to drop",
     "noCoordinates": "This ride has no location to navigate to.",
-    "mapsFailed": "Couldn't open a maps app.",
     "callFailed": "Couldn't start the call.",
 
     "otpTitle": "Start OTP",
@@ -289,7 +336,27 @@
     "cancelFailed": "Couldn't cancel the ride.",
     "cancelledByRider": "The rider cancelled this ride.",
 
+    "destination": "Destination",
     "loadFailed": "Couldn't load this ride."
+  },
+  "navigate": {
+    "starting": "Starting navigation…",
+    "routing": "Finding the best route…",
+    "arrived": "You've arrived.",
+    "failed": "Couldn't start navigation.",
+    "noRoute": "No route to this destination.",
+    "noFix": "Waiting for a GPS signal. Check that location is on.",
+    "serviceUnreachable": "Couldn't reach the navigation service. If you're online, this is a problem on our side, not yours.",
+    "routeUnreachable": "Couldn't fetch the route. If you're online, this is a problem on our side, not yours.",
+    "quotaError": "In-app navigation is temporarily unavailable. Please tell support.",
+    "badDestination": "This destination can't be routed to.",
+    "noPermission": "Location access is needed to navigate.",
+    "notAuthorized": "In-app navigation isn't enabled for this app yet.",
+    "termsDeclined": "Navigation terms declined. Accept them to navigate.",
+    "code": "Code: {{code}}",
+    "retry": "Try again",
+    "back": "Back to the ride",
+    "close": "Close"
   },
   "rideSuccess": {
     "title": "Ride completed",

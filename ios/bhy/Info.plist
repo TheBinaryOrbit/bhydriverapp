@@ -39,7 +39,22 @@
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Choose photos of your profile, driving licence and vehicle to complete registration.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string></string>
+	<string>Your location is used to match you with nearby riders and to navigate you to the pickup and drop.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Your location is used to keep turn-by-turn guidance running and to show riders where you are while a trip is in progress.</string>
+	<!-- Google Maps / Navigation SDK key, read in AppDelegate.swift. The value
+	     is substituted at build time from the MAPS_API_KEY build setting, which
+	     comes from the gitignored ios/Secrets.xcconfig — see ios/Podfile. A
+	     checkout without that file builds fine and simply logs that navigation
+	     will not authorise. -->
+	<key>GMSApiKey</key>
+	<string>$(MAPS_API_KEY)</string>
+	<!-- Guidance keeps running and speaking while the app is backgrounded. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+		<string>audio</string>
+	</array>
 	<key>UIAppFonts</key>
 	<array>
 		<string>MaterialIcons.ttf</string>

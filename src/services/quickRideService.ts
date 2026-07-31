@@ -6,6 +6,7 @@ import type {
   QuickRide,
   QuickRideBid,
   RawRideCard,
+  RideStatus,
 } from '../types/quickRide';
 
 /** `{ latitude, longitude }` as the REST query params want it. */
@@ -179,13 +180,53 @@ export async function cancelRide(
 }
 
 /**
+ * Query filters for `GET /quick-rides/my`. All optional and combinable.
+ *
+ * Dates are `YYYY-MM-DD` **IST calendar days** — the server's timezone, not the
+ * device's. Build them with `presetRange` rather than by hand.
+ */
+export type RideHistoryFilter = {
+  /** Statuses to include; absent or empty means all of them. */
+  status?: RideStatus[];
+  /** One single day. */
+  date?: string;
+  /** On or after, inclusive. Works without `to`. */
+  from?: string;
+  /** On or before, to the end of that day. Works without `from`. */
+  to?: string;
+};
+
+/** `?status=completed,cancelled&from=…`, or `''` when nothing is filtered. */
+function historyQuery(filter?: RideHistoryFilter): string {
+  const params: string[] = [];
+
+  // An unrecognised status is a 400, so only the typed union goes out — never
+  // a raw string from elsewhere.
+  if (filter?.status?.length) {
+    params.push(`status=${filter.status.join(',')}`);
+  }
+  (['date', 'from', 'to'] as const).forEach(key => {
+    const value = filter?.[key];
+    if (value) {
+      params.push(`${key}=${value}`);
+    }
+  });
+
+  return params.length > 0 ? `?${params.join('&')}` : '';
+}
+
+/**
  * `GET /quick-rides/my` — history, newest first. This is **not** the resume
  * call; `fetchLiveState` is.
  */
-export async function fetchMyRides(token: string): Promise<QuickRide[]> {
-  const res = await fetch(apiUrl(API.endpoints.quickRidesMy), {
-    headers: bearer(token),
-  });
+export async function fetchMyRides(
+  token: string,
+  filter?: RideHistoryFilter,
+): Promise<QuickRide[]> {
+  const res = await fetch(
+    `${apiUrl(API.endpoints.quickRidesMy)}${historyQuery(filter)}`,
+    { headers: bearer(token) },
+  );
   const data = await res.json().catch(() => null);
   if (!res.ok) {
     throw apiError(data, res.status, 'Failed to load your rides');

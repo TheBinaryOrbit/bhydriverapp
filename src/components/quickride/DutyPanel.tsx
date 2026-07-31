@@ -13,6 +13,8 @@ type Props = {
   onDuty: boolean;
   switching: boolean;
   link: LinkStatus;
+  /** A ride is running, so duty is held on and the switch is inert. */
+  locked?: boolean;
   onGoOnline: () => void;
   onGoOffline: () => void;
 };
@@ -28,6 +30,7 @@ export default function DutyPanel({
   onDuty,
   switching,
   link,
+  locked = false,
   onGoOnline,
   onGoOffline,
 }: Props) {
@@ -35,6 +38,7 @@ export default function DutyPanel({
 
   const reconnecting = onDuty && link === 'reconnecting';
   const live = onDuty && link === 'connected';
+  const frozen = switching || locked;
 
   return (
     <LinearGradient
@@ -66,19 +70,21 @@ export default function DutyPanel({
           </View>
 
           <Text className="mt-1 text-[13px] leading-5 text-white/70">
-            {reconnecting
-              ? t('quickRide.reconnectingBody')
-              : live
-                ? t('quickRide.onlineBody')
-                : t('quickRide.offlineBody')}
+            {locked
+              ? t('quickRide.dutyLockedBody')
+              : reconnecting
+                ? t('quickRide.reconnectingBody')
+                : live
+                  ? t('quickRide.onlineBody')
+                  : t('quickRide.offlineBody')}
           </Text>
         </View>
 
         <Pressable
           onPress={onDuty ? onGoOffline : onGoOnline}
-          disabled={switching}
+          disabled={frozen}
           className={`ml-4 h-12 min-w-[104px] flex-row items-center justify-center rounded-full px-5 ${
-            switching ? 'opacity-70' : 'active:opacity-85'
+            frozen ? 'opacity-70' : 'active:opacity-85'
           }`}
           style={{
             backgroundColor: onDuty ? 'rgba(255,255,255,0.16)' : colors.tertiary,
@@ -89,12 +95,16 @@ export default function DutyPanel({
           ) : (
             <>
               <MaterialIcons
-                name={onDuty ? 'pause' : 'bolt'}
+                name={locked ? 'lock' : onDuty ? 'pause' : 'bolt'}
                 size={17}
                 color={colors.primary}
               />
               <Text className="ml-1.5 text-sm font-bold text-white">
-                {onDuty ? t('quickRide.goOffline') : t('quickRide.goOnline')}
+                {locked
+                  ? t('quickRide.dutyLocked')
+                  : onDuty
+                    ? t('quickRide.goOffline')
+                    : t('quickRide.goOnline')}
               </Text>
             </>
           )}

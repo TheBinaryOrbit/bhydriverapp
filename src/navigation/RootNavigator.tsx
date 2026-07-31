@@ -16,6 +16,7 @@ import KycScreen from '../screens/profile/KycScreen';
 import ContentPageScreen from '../screens/profile/ContentPageScreen';
 import RideDetailsScreen from '../screens/quickride/RideDetailsScreen';
 import RideSuccessScreen from '../screens/quickride/RideSuccessScreen';
+import NavigationScreen from '../screens/quickride/NavigationScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -61,6 +62,13 @@ export default function RootNavigator() {
           name="RideSuccess"
           component={RideSuccessScreen}
           options={{ gestureEnabled: false }}
+        />
+        {/* Full-screen guidance. The back gesture is off so a stray swipe on a
+            mounted phone can't kill the driver's directions. */}
+        <Stack.Screen
+          name="Navigate"
+          component={NavigationScreen}
+          options={{ gestureEnabled: false, animation: 'fade' }}
         />
       </Stack.Navigator>
     </NavigationContainer>

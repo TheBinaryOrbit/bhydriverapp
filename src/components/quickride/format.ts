@@ -28,6 +28,33 @@ export function duration(minutes?: number | null): string | null {
   return `${Math.floor(whole / 60)} h ${whole % 60} m`;
 }
 
+/**
+ * `12 Mar, 4:35 pm` — when a ride happened. The year is added only once the
+ * ride falls outside the current one, which keeps the recent rows short.
+ */
+export function rideMoment(iso?: string | null): string | null {
+  if (!iso) {
+    return null;
+  }
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  const day = date.toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    ...(date.getFullYear() === new Date().getFullYear()
+      ? null
+      : { year: 'numeric' }),
+  });
+  const time = date.toLocaleTimeString('en-IN', {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+  return `${day}, ${time.toLowerCase()}`;
+}
+
 /** Joins the parts a card actually has, dropping the ones it doesn't. */
 export function summaryLine(parts: (string | null | undefined)[]): string {
   return parts.filter(Boolean).join(' · ');

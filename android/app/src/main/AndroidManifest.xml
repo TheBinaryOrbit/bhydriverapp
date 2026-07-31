@@ -22,6 +22,14 @@
       android:theme="@style/AppTheme"
       android:usesCleartextTraffic="${usesCleartextTraffic}"
       android:supportsRtl="true">
+
+      <!-- Google Maps / Navigation SDK. The value comes from `MAPS_API_KEY` in
+           android/local.properties via a manifest placeholder in build.gradle,
+           so the key is never committed. -->
+      <meta-data
+        android:name="com.google.android.geo.API_KEY"
+        android:value="${MAPS_API_KEY}" />
+
       <activity
         android:name=".MainActivity"
         android:label="@string/app_name"

@@ -80,6 +80,7 @@ export default function QuickRideTab({ token }: Props) {
     bids,
     liveRide,
     busy,
+    dutyLocked,
     needsVehicle,
     refresh,
     goOnline,
@@ -228,6 +229,7 @@ export default function QuickRideTab({ token }: Props) {
         onDuty={onDuty}
         switching={switching}
         link={link}
+        locked={dutyLocked}
         onGoOnline={goOnline}
         onGoOffline={goOffline}
       />

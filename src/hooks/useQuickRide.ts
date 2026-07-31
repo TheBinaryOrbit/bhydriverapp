@@ -73,6 +73,11 @@ export type QuickRideState = {
   liveRide: LiveRide | null;
   /** The driver is mid-ride, so no cards are coming. */
   busy: boolean;
+  /**
+   * Duty is held on by an active ride and `goOffline` will not act. The rider
+   * is tracking this driver, so the location ping has to keep running.
+   */
+  dutyLocked: boolean;
   needsVehicle: boolean;
   error: string | null;
 
@@ -355,6 +360,13 @@ export function useQuickRide({
 
   /* ---------------------------------------------- duty */
 
+  /**
+   * `busy` and `liveRide` are set from separate fields on the same `/live`
+   * response, and `ride:rejoined` / `bid:accepted` raise only `busy`. Either
+   * one alone means there is a rider depending on this driver's position.
+   */
+  const onRide = busy || liveRide !== null;
+
   const goOnline = useCallback(async () => {
     if (switching) {
       return;
@@ -388,12 +400,46 @@ export function useQuickRide({
   }, [load, requestLocation, startWatching, switching]);
 
   const goOffline = useCallback(() => {
+    // Refused mid-ride for the same reason duty is forced on below — the rider
+    // is watching this driver move. The panel disables the button; this is the
+    // backstop for a tap that lands as a ride is being assigned.
+    if (onRide) {
+      return;
+    }
     driverSocket.goOffline();
     stopWatching();
     setOnDuty(false);
     setCardsById({});
     setBids({});
-  }, [stopWatching]);
+  }, [onRide, stopWatching]);
+
+  /**
+   * A ride in progress owns the driver's duty state.
+   *
+   * The rider's live map is fed by the same 5s `driver:location` ping that
+   * makes a free driver discoverable, and that ping only runs while on duty.
+   * Nothing else re-arms it: a fresh process starts with
+   * `driverSocket.isOnDuty === false`, and both of the mid-ride resume paths
+   * (`/live` reporting `busy`, and `ride:rejoined`) only set `busy` and hand
+   * off to the details screen. So a driver who force-quit the app, or who was
+   * simply cold-started onto a ride, would go on driving while the rider
+   * watched a car frozen where it was minutes ago.
+   */
+  const resumedForRide = useRef(false);
+
+  useEffect(() => {
+    if (!onRide) {
+      resumedForRide.current = false;
+      return;
+    }
+    if (onDuty || switching || resumedForRide.current) {
+      return;
+    }
+    // Once per ride — a `goOnline` that fails leaves its own `dutyBlock` with a
+    // retry rather than looping on a driver who has no signal.
+    resumedForRide.current = true;
+    goOnline();
+  }, [goOnline, onDuty, onRide, switching]);
 
   /* ---------------------------------------------- bidding */
 
@@ -502,6 +548,7 @@ export function useQuickRide({
     bids,
     liveRide,
     busy,
+    dutyLocked: onRide,
     needsVehicle,
     error,
     refresh,

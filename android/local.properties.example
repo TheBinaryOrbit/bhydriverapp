@@ -1,0 +1,8 @@
+# Copy to `local.properties` (gitignored) and fill in.
+#
+# Google Maps / Navigation SDK key, injected into AndroidManifest.xml as the
+# `MAPS_API_KEY` manifest placeholder by app/build.gradle. The key needs the
+# Maps SDK for Android *and* the Navigation SDK for Android enabled on its
+# Google Cloud project, and must be allowed for the `com.bhy` package plus the
+# signing certificate you build with.
+MAPS_API_KEY=

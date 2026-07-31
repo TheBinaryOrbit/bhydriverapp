@@ -2,7 +2,7 @@ import type { NavigatorScreenParams } from '@react-navigation/native';
 
 import type { OnboardingPrefill } from '../screens/onboarding/types';
 import type { RidePaymentDetails } from '../types/driver';
-import type { QuickRide } from '../types/quickRide';
+import type { LatLng, QuickRide } from '../types/quickRide';
 
 export type MainTabParamList = {
   Home: undefined;
@@ -53,6 +53,13 @@ export type RootStackParamList = {
    * while `GET /quick-rides/:id` — the actual source of truth — is in flight.
    */
   RideDetails: { rideId: string; ride?: QuickRide };
+  /**
+   * In-app turn-by-turn guidance to one leg of the trip.
+   *
+   * Always coordinates — `title` is only the label the SDK shows in the
+   * notification tray, never what it routes to.
+   */
+  Navigate: { destination: LatLng; title: string };
   /**
    * Trip closed. `finalFare` is what the driver earned — and what the UPI QR
    * on that screen collects.

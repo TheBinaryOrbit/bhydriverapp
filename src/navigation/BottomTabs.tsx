@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import type { MainTabParamList } from './types';
 import { colors } from '../theme/colors';
 import HomeScreen from '../screens/HomeScreen';
+import HistoryScreen from '../screens/history/HistoryScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 
@@ -49,7 +50,7 @@ export default function BottomTabs() {
       />
       <Tab.Screen
         name="History"
-        component={ProfileScreen}
+        component={HistoryScreen}
         options={{ tabBarLabel: t('tabs.history') }}
       />
       <Tab.Screen
