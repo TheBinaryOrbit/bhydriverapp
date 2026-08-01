@@ -14,24 +14,18 @@ type HomeTab = 'quickRide' | 'outstation';
  * The driver's home. Two products share this screen — QuickRide (live, bid-on
  * demand) and Outstation (long-distance) — switched by the pill at the top.
  *
- * The panels are hidden rather than unmounted, and deliberately not a
- * navigator: QuickRide holds the socket subscriptions that pull the driver into
- * a ride they just won, so it has to keep listening even while Outstation is
- * the visible tab.
+ * Both panels are hidden rather than unmounted, and deliberately not a
+ * navigator: each holds the socket subscriptions that pull the driver into a
+ * ride they just won, and each runs its own `/live` resume. Lazy-mounting
+ * Outstation would mean a driver who force-quit mid-trip and reopened onto the
+ * QuickRide tab never resumes it — and while an outstation trip is `arriving`,
+ * that resume is the only thing keeping the rider's map alive.
  */
 export default function HomeScreen() {
   const { t } = useTranslation();
   const { token, driver } = useAuth();
 
   const [tab, setTab] = useState<HomeTab>('quickRide');
-  const [visited, setVisited] = useState({ outstation: false });
-
-  const selectTab = (next: HomeTab) => {
-    setTab(next);
-    if (next === 'outstation') {
-      setVisited(previous => ({ ...previous, outstation: true }));
-    }
-  };
 
   const firstName = driver?.name?.trim().split(/\s+/)[0];
 
@@ -50,7 +44,7 @@ export default function HomeScreen() {
         <View className="mt-4">
           <SegmentedTabs<HomeTab>
             value={tab}
-            onChange={selectTab}
+            onChange={setTab}
             tabs={[
               {
                 key: 'quickRide',
@@ -70,9 +64,8 @@ export default function HomeScreen() {
       {/* The rounded lip is what makes the navy header read as a card the body
           slides under, matching the profile and onboarding surfaces. */}
       <View className="flex-1 overflow-hidden rounded-t-3xl bg-white">
-        {/* Hidden, not unmounted: QuickRide holds the socket subscriptions, and
-            a driver who wandered onto Outstation must still be pulled into the
-            ride they just won. */}
+        {/* Hidden, not unmounted: whichever tab the driver is looking at, both
+            must keep listening for the ride they just won. */}
         <View
           style={[
             StyleSheet.absoluteFill,
@@ -82,17 +75,14 @@ export default function HomeScreen() {
           <QuickRideTab token={token} />
         </View>
 
-        {/* Mounted on first visit only — there is nothing live behind it. */}
-        {visited.outstation ? (
-          <View
-            style={[
-              StyleSheet.absoluteFill,
-              tab === 'outstation' ? null : styles.hidden,
-            ]}
-          >
-            <OutstationTab />
-          </View>
-        ) : null}
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            tab === 'outstation' ? null : styles.hidden,
+          ]}
+        >
+          <OutstationTab token={token} />
+        </View>
       </View>
     </Screen>
   );

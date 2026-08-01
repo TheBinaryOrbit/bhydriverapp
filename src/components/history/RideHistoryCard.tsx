@@ -3,23 +3,61 @@ import { Text, View } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useTranslation } from 'react-i18next';
 
+import { departureLabel } from '../outstation/format';
 import { distance, duration, rideMoment, rupees } from '../quickride/format';
 import i18n, { supportedLanguages } from '../../i18n';
 import { colors } from '../../theme/colors';
-import type { QuickRide, RideStatus } from '../../types/quickRide';
+import type { OutstationRideStatus } from '../../types/outstation';
+import type { RideStatus } from '../../types/quickRide';
 
-type Props = { ride: QuickRide };
+/**
+ * The fields a history row reads. Structural rather than a named ride type, so
+ * a `QuickRide` and an `OutstationRide` both satisfy it — a finished trip is a
+ * finished trip, and the two products differ only in the extra `pickupAt` an
+ * outstation row carries.
+ */
+export type HistoryRide = {
+  _id: string;
+  rideStatus: RideStatus | OutstationRideStatus;
+  pickupLocationName?: string;
+  dropLocationName?: string;
+  estimatedDistanceKm?: number;
+  estimatedDurationMin?: number;
+  offeredFare?: number;
+  finalFare?: number;
+  vehicleTypeId?: { name?: string };
+  startedAt?: string | null;
+  completedAt?: string | null;
+  cancellationReason?: string;
+  createdAt?: string;
+  /** Outstation only — when the trip was scheduled to depart. */
+  pickupAt?: string;
+};
+
+type Props = {
+  ride: HistoryRide;
+  /**
+   * Show the scheduled departure. Only meaningful for outstation, where a trip
+   * can have been booked weeks before the day it ran.
+   */
+  showDeparture?: boolean;
+};
 
 /**
  * Icon + tint per outcome. The tint only ever colours an icon and its label —
  * the card itself stays white, so a screen full of them reads as one list
  * rather than a stack of coloured blocks. `searching` never reaches history.
  */
-const STATUS_STYLE: Record<RideStatus, { icon: string; fg: string }> = {
+const STATUS_STYLE: Record<
+  RideStatus | OutstationRideStatus,
+  { icon: string; fg: string }
+> = {
   completed: { icon: 'check-circle', fg: colors.success },
   cancelled: { icon: 'cancel', fg: colors.danger },
   expired: { icon: 'timer-off', fg: colors.warning },
   in_progress: { icon: 'local-taxi', fg: colors.warning },
+  // Outstation-only: the driver has set off but the rider isn't aboard yet.
+  arriving: { icon: 'my-location', fg: colors.warning },
   assigned: { icon: 'hourglass-top', fg: colors.warning },
   searching: { icon: 'search', fg: colors.muted },
 };
@@ -28,7 +66,10 @@ const STATUS_STYLE: Record<RideStatus, { icon: string; fg: string }> = {
  * One past ride. Read-only by design — a finished ride has no action left, and
  * the live ride is reached from the home tab, never from here.
  */
-export default function RideHistoryCard({ ride }: Props) {
+export default function RideHistoryCard({
+  ride,
+  showDeparture = false,
+}: Props) {
   const { t } = useTranslation();
 
   const status = STATUS_STYLE[ride.rideStatus] ?? STATUS_STYLE.searching;
@@ -47,10 +88,16 @@ export default function RideHistoryCard({ ride }: Props) {
       ? cancelNote(ride.cancellationReason, t)
       : null;
 
+  // The departure is its own chip rather than replacing `when`: an outstation
+  // trip booked on Monday for Friday has two dates, and collapsing them loses
+  // the one the driver is actually looking for.
+  const departs = showDeparture ? departureLabel(ride.pickupAt, t) : null;
+
   const chips = [
     { icon: 'straighten', label: distance(ride.estimatedDistanceKm) },
     { icon: 'schedule', label: duration(ride.estimatedDurationMin) },
     { icon: 'directions-car', label: ride.vehicleTypeId?.name },
+    { icon: 'flight-takeoff', label: departs },
   ].filter(chip => !!chip.label);
 
   return (

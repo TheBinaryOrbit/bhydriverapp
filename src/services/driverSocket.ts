@@ -2,6 +2,11 @@ import { io, type Socket } from 'socket.io-client';
 
 import { SOCKET_URL } from './api';
 import type {
+  OutstationRide,
+  OutstationRideStatus,
+  RawOutstationCard,
+} from '../types/outstation';
+import type {
   BidBounds,
   QuickRide,
   RawRideCard,
@@ -37,6 +42,13 @@ export type DriverPosition = {
 export type LinkStatus =
   'disconnected' | 'connecting' | 'connected' | 'reconnecting';
 
+/**
+ * Which product a shared event belongs to. Sent by the server on the events the
+ * two products have in common; **absent means `quickride`**, so a build that
+ * predates outstation keeps working unchanged.
+ */
+export type RideType = 'quickride' | 'outstation';
+
 /** Server → driver events, with the payload each one carries. */
 export type DriverSocketEvents = {
   /** A card, or occasionally the raw document — `toRideCard` takes either. */
@@ -61,13 +73,66 @@ export type DriverSocketEvents = {
     finalFare?: number;
   };
   'ride:expired': { rideId: string };
-  'ride:ended': { rideId: string; reason?: string };
-  'ride:rejoined': { rideId: string; rideStatus: RideStatus };
+  /**
+   * The tracking room was torn down. `picked_up` is outstation-only and means
+   * the rider is aboard, **not** that the trip is over.
+   */
+  'ride:ended': {
+    rideId: string;
+    reason?: 'completed' | 'cancelled' | 'expired' | 'picked_up';
+  };
+  /**
+   * Reconnected into an active ride. Shared between the products, so this can
+   * arrive **once per ride** — a driver may hold an outstation trip they are
+   * driving to *and* a QuickRide accepted before the block window closed. Every
+   * handler must check `rideType` before claiming the ride as its own.
+   */
+  'ride:rejoined': {
+    rideId: string;
+    rideStatus: RideStatus | OutstationRideStatus;
+    rideType?: RideType;
+  };
   /** Reconnected inside the grace window — **skip `driver:online`**. */
   'driver:resumed': {
     latitude?: number;
     longitude?: number;
     offlineForMs?: number;
+  };
+
+  /* ---------------------------------------------- outstation
+   *
+   * Namespaced on purpose: an older build with no `outstation:*` listeners
+   * ignores these trips entirely, which is the intended degradation. It must
+   * never render one as a QuickRide card and bid it to `/quick-ride-bids`.
+   */
+
+  /** A new trip within 20 km. Adds `rideType`, `bookingType` and `pickupAt`. */
+  'outstation:request': RawOutstationCard;
+  /** Full card when re-dispatched to you, short form when you hold a bid. */
+  'outstation:fare_updated':
+    | RawOutstationCard
+    | { rideId: string; offeredFare?: number; bidBounds?: BidBounds };
+  /** You won. Every other outstation bid you held is already deleted. */
+  'outstation:bid_accepted': {
+    rideId: string;
+    ride?: OutstationRide;
+    finalFare?: number;
+  };
+  'outstation:ride_taken': { rideId: string; bidId?: string };
+  /** The rider dismissed your bid; the trip itself may still be open. */
+  'outstation:bid_removed': { bidId?: string; outstationRideId: string };
+  'outstation:ride_cancelled': {
+    rideId: string;
+    cancelledBy?: string;
+    cancellationReason?: string;
+  };
+  'outstation:ride_expired': { rideId: string };
+  /** The rider is aboard — `arriving → in_progress`. */
+  'outstation:picked_up': { rideId: string; pickedUpAt?: string };
+  'outstation:completed': {
+    rideId: string;
+    completedAt?: string;
+    finalFare?: number;
   };
 };
 
@@ -87,6 +152,15 @@ const SERVER_EVENTS: DriverSocketEvent[] = [
   'ride:ended',
   'ride:rejoined',
   'driver:resumed',
+  'outstation:request',
+  'outstation:fare_updated',
+  'outstation:bid_accepted',
+  'outstation:ride_taken',
+  'outstation:bid_removed',
+  'outstation:ride_cancelled',
+  'outstation:ride_expired',
+  'outstation:picked_up',
+  'outstation:completed',
 ];
 
 type Listener<E extends DriverSocketEvent> = (
@@ -94,6 +168,19 @@ type Listener<E extends DriverSocketEvent> = (
 ) => void;
 
 export type OnlineAck = { ok: boolean; message?: string };
+
+/**
+ * Duty as both products see it.
+ *
+ * `held` is the important half. The 5s `driver:location` ping does two jobs —
+ * it keeps a free driver discoverable **and** it is the only thing feeding a
+ * rider's live map — and it runs only while on duty. So any surface that has a
+ * rider depending on this driver's position registers a hold, and duty cannot
+ * be switched off until every hold is released. Without it, a driver could go
+ * offline from the QuickRide tab and silently freeze the map of a rider waiting
+ * on an outstation pickup.
+ */
+export type DutyState = { onDuty: boolean; held: boolean };
 
 /**
  * One socket for the whole app, kept outside React so a screen unmounting —
@@ -110,8 +197,12 @@ class DriverSocket {
   /** True once `driver:online` was acked, so a reconnect knows to re-announce. */
   private wantsOnline = false;
 
+  /** Keyed by product, so two live rides can hold duty independently. */
+  private holds = new Set<string>();
+
   private listeners = new Map<string, Set<(payload: any) => void>>();
   private linkListeners = new Set<(status: LinkStatus) => void>();
+  private dutyListeners = new Set<(state: DutyState) => void>();
   private link: LinkStatus = 'disconnected';
 
   /* -------------------------------------------------- connection */
@@ -203,11 +294,14 @@ class DriverSocket {
   disconnect(): void {
     this.stopPings();
     this.wantsOnline = false;
+    // Logging out ends every ride this session was holding.
+    this.holds.clear();
     this.socket?.removeAllListeners();
     this.socket?.disconnect();
     this.socket = null;
     this.token = null;
     this.setLink('disconnected');
+    this.emitDuty();
   }
 
   get linkStatus(): LinkStatus {
@@ -264,6 +358,7 @@ class DriverSocket {
           if (ack?.ok) {
             this.wantsOnline = true;
             this.startPings();
+            this.emitDuty();
           }
           resolve(ack ?? { ok: false });
         },
@@ -293,15 +388,61 @@ class DriverSocket {
     });
   }
 
-  /** Evicts the driver from the geo index **immediately** — no grace window. */
-  goOffline(): void {
+  /**
+   * Evicts the driver from the geo index **immediately** — no grace window.
+   *
+   * Refused while any hold is registered, and reported as such: a rider is
+   * watching this driver move, and the UI's disabled switch is only the first
+   * of the two guards.
+   */
+  goOffline(): boolean {
+    if (this.holds.size > 0) {
+      return false;
+    }
     this.wantsOnline = false;
     this.stopPings();
     this.socket?.emit('driver:offline', {});
+    this.emitDuty();
+    return true;
   }
 
   get isOnDuty(): boolean {
     return this.wantsOnline;
+  }
+
+  get dutyState(): DutyState {
+    return { onDuty: this.wantsOnline, held: this.holds.size > 0 };
+  }
+
+  /**
+   * Pins duty on for as long as `key` holds it. Idempotent, so the caller can
+   * re-assert it on every render of the ride it belongs to.
+   */
+  holdDuty(key: string): void {
+    if (this.holds.has(key)) {
+      return;
+    }
+    this.holds.add(key);
+    this.emitDuty();
+  }
+
+  releaseDuty(key: string): void {
+    if (this.holds.delete(key)) {
+      this.emitDuty();
+    }
+  }
+
+  /** Subscribe to duty changes. Returns the unsubscribe. */
+  onDutyChange(listener: (state: DutyState) => void): () => void {
+    this.dutyListeners.add(listener);
+    return () => {
+      this.dutyListeners.delete(listener);
+    };
+  }
+
+  private emitDuty(): void {
+    const state = this.dutyState;
+    this.dutyListeners.forEach(listener => listener(state));
   }
 
   /* -------------------------------------------------- location */

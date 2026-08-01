@@ -74,6 +74,14 @@ export type QuickRideState = {
   /** The driver is mid-ride, so no cards are coming. */
   busy: boolean;
   /**
+   * Why. Not always a QuickRide: an outstation trip departing within two hours
+   * blocks this product too, and an empty list with no explanation reads as a
+   * dead app rather than a rule.
+   */
+  busyReason: string | null;
+  /** The server's own sentence for `busyReason`, when it sent one. */
+  busyMessage: string | null;
+  /**
    * Duty is held on by an active ride and `goOffline` will not act. The rider
    * is tracking this driver, so the location ping has to keep running.
    */
@@ -105,6 +113,9 @@ type Params = {
   stopWatching: () => void;
 };
 
+/** Identifies this product's claim on duty in `driverSocket`. */
+const DUTY_HOLD = 'quickride';
+
 export function useQuickRide({
   token,
   location,
@@ -123,8 +134,16 @@ export function useQuickRide({
   const [bids, setBids] = useState<Record<string, PendingBid>>({});
   const [liveRide, setLiveRide] = useState<LiveRide | null>(null);
   const [busy, setBusy] = useState(false);
+  const [busyReason, setBusyReason] = useState<string | null>(null);
+  const [busyMessage, setBusyMessage] = useState<string | null>(null);
   const [needsVehicle, setNeedsVehicle] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /**
+   * Another product has pinned duty on — an outstation trip in `arriving`,
+   * whose rider is watching this driver move. The switch has to lock even
+   * though nothing on *this* tab explains why.
+   */
+  const [dutyHeld, setDutyHeld] = useState(driverSocket.dutyState.held);
 
   // Read inside socket handlers, which are registered once and would otherwise
   // close over the first render's values.
@@ -188,6 +207,8 @@ export function useQuickRide({
       try {
         const live = await fetchLiveState(token, locationRef.current);
         setBusy(live.busy);
+        setBusyReason(live.busyReason ?? null);
+        setBusyMessage(live.busyMessage ?? null);
         setNeedsVehicle(live.needsVehicle === true);
         setError(null);
 
@@ -333,15 +354,23 @@ export function useQuickRide({
         assignedRef.current(rideId, ride);
       }),
 
-      // Reconnected straight into an active ride.
-      driverSocket.on('ride:rejoined', ({ rideId }) => {
+      driverSocket.onDutyChange(state => setDutyHeld(state.held)),
+
+      // Reconnected straight into an active ride. Shared with outstation, and
+      // a driver can hold one of each at once — so an outstation rejoin must
+      // not be dragged onto the QuickRide details screen.
+      driverSocket.on('ride:rejoined', payload => {
+        if (payload.rideType === 'outstation') {
+          return;
+        }
         setBusy(true);
-        assignedRef.current(rideId);
+        assignedRef.current(payload.rideId);
       }),
 
       // Completing frees the driver, so the home tab goes back to listening.
       driverSocket.on('ride:completed', () => {
         setBusy(false);
+        setBusyReason(null);
         setLiveRide(null);
       }),
 
@@ -399,19 +428,31 @@ export function useQuickRide({
     }
   }, [load, requestLocation, startWatching, switching]);
 
-  const goOffline = useCallback(() => {
-    // Refused mid-ride for the same reason duty is forced on below — the rider
-    // is watching this driver move. The panel disables the button; this is the
-    // backstop for a tap that lands as a ride is being assigned.
-    if (onRide) {
+  /**
+   * A rider is watching this driver move, so duty is pinned for as long as the
+   * ride runs. Registered on the socket rather than kept local, because the
+   * outstation tab has to be locked out of `goOffline` by this too.
+   */
+  useEffect(() => {
+    if (!onRide) {
+      driverSocket.releaseDuty(DUTY_HOLD);
       return;
     }
-    driverSocket.goOffline();
+    driverSocket.holdDuty(DUTY_HOLD);
+    return () => driverSocket.releaseDuty(DUTY_HOLD);
+  }, [onRide]);
+
+  const goOffline = useCallback(() => {
+    // Refused while any hold is registered — see above. The panel disables the
+    // button; this is the backstop for a tap that lands as a ride is assigned.
+    if (!driverSocket.goOffline()) {
+      return;
+    }
     stopWatching();
     setOnDuty(false);
     setCardsById({});
     setBids({});
-  }, [onRide, stopWatching]);
+  }, [stopWatching]);
 
   /**
    * A ride in progress owns the driver's duty state.
@@ -548,7 +589,9 @@ export function useQuickRide({
     bids,
     liveRide,
     busy,
-    dutyLocked: onRide,
+    busyReason,
+    busyMessage,
+    dutyLocked: onRide || dutyHeld,
     needsVehicle,
     error,
     refresh,

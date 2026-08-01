@@ -144,6 +144,15 @@ export function bidRideId(bid: QuickRideBid): string {
 export type LiveState = {
   role?: string;
   busy: boolean;
+  /**
+   * Why the driver is busy. Typed loosely on purpose — availability is derived
+   * from *both* ride collections, so a QuickRide driver can be blocked by an
+   * outstation trip they accepted for tomorrow (`outstation_pickup_imminent`),
+   * and this file must not depend on the outstation types to say so.
+   */
+  busyReason?: string;
+  /** The server's own sentence for `busyReason`, when it sent one. */
+  busyMessage?: string;
   hasLiveRide: boolean;
   rideStatus?: RideStatus;
   /** Computed server-side so the app never re-derives the phase. */

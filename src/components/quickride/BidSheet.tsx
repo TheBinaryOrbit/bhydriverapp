@@ -8,17 +8,38 @@ import FareSlider from './FareSlider';
 import RouteLine from './RouteLine';
 import { distance, duration, rupees, summaryLine } from './format';
 import PrimaryButton from '../PrimaryButton';
-import type { PendingBid } from '../../hooks/useQuickRide';
 import { colors } from '../../theme/colors';
-import type { RideCard } from '../../types/quickRide';
+import type { BidBounds } from '../../types/quickRide';
+
+/**
+ * The fields the sheet actually reads off an offer. Structural rather than a
+ * named ride type, so a `RideCard` and an `OutstationCard` both satisfy it —
+ * bidding is the one part of the two products that is genuinely identical.
+ */
+export type BidSheetCard = {
+  bidBounds?: BidBounds;
+  offeredFare?: number;
+  pickupLocationName?: string;
+  dropLocationName?: string;
+  estimatedDistanceKm?: number;
+  estimatedDurationMin?: number;
+};
+
+/**
+ * The standing bid, if any. `status` is optional because outstation bids never
+ * expire and so only ever have one; absent counts as `pending`.
+ */
+export type BidSheetBid = { fare: number; status?: 'pending' | 'expired' };
 
 type Props = {
-  card: RideCard | null;
+  card: BidSheetCard | null;
   /** The standing bid, when the driver is lowering rather than opening one. */
-  bid?: PendingBid;
+  bid?: BidSheetBid;
   submitting: boolean;
   /** Message from a rejected bid — bounds, or "you can only lower". */
   error: string | null;
+  /** The small print under the button. Defaults to QuickRide's 60s rule. */
+  note?: string;
   onSubmit: (fare: number) => void;
   onClose: () => void;
 };
@@ -36,6 +57,7 @@ export default function BidSheet({
   bid,
   submitting,
   error,
+  note,
   onSubmit,
   onClose,
 }: Props) {
@@ -43,7 +65,10 @@ export default function BidSheet({
   const insets = useSafeAreaInsets();
 
   const bounds = card?.bidBounds;
-  const lowering = bid?.status === 'pending' && typeof bid.fare === 'number';
+  const lowering =
+    bid !== undefined &&
+    bid.status !== 'expired' &&
+    typeof bid.fare === 'number';
 
   const { min, max } = useMemo(() => {
     const low = bounds?.min ?? 0;
@@ -194,7 +219,7 @@ export default function BidSheet({
               />
 
               <Text className="mt-3 text-center text-[11px] leading-4 text-muted">
-                {t('quickRide.bidNote')}
+                {note ?? t('quickRide.bidNote')}
               </Text>
             </>
           ) : null}

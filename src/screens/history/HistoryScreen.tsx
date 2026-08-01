@@ -78,7 +78,7 @@ export default function HistoryScreen() {
               tab === 'outstation' ? null : styles.hidden,
             ]}
           >
-            <OutstationHistoryTab />
+            <OutstationHistoryTab token={token} />
           </View>
         ) : null}
       </View>

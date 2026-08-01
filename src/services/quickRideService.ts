@@ -45,6 +45,8 @@ export async function fetchLiveState(
   return {
     role: data?.role,
     busy: data?.busy === true,
+    busyReason: data?.busyReason,
+    busyMessage: data?.message ?? data?.busyMessage,
     hasLiveRide: data?.hasLiveRide === true,
     rideStatus: data?.rideStatus,
     navigateTo: data?.navigateTo,

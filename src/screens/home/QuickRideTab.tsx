@@ -19,6 +19,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useTranslation } from 'react-i18next';
 
+import BusyNote from '../../components/outstation/BusyNote';
 import BidSheet from '../../components/quickride/BidSheet';
 import DutyPanel, { DutyBlockNote } from '../../components/quickride/DutyPanel';
 import RideRequestCard from '../../components/quickride/RideRequestCard';
@@ -80,6 +81,8 @@ export default function QuickRideTab({ token }: Props) {
     bids,
     liveRide,
     busy,
+    busyReason,
+    busyMessage,
     dutyLocked,
     needsVehicle,
     refresh,
@@ -282,6 +285,13 @@ export default function QuickRideTab({ token }: Props) {
             color={colors.indicatorBorder}
           />
         </Pressable>
+      ) : null}
+
+      {/* Busy with no QuickRide of our own means the other product is holding
+          the driver — an outstation trip departing within two hours. Without
+          this the tab just shows "Looking for rides" forever. */}
+      {busy && !liveRide ? (
+        <BusyNote reason={busyReason} message={busyMessage} />
       ) : null}
 
       {cards.length > 0 ? (

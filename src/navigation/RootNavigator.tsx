@@ -17,6 +17,7 @@ import ContentPageScreen from '../screens/profile/ContentPageScreen';
 import RideDetailsScreen from '../screens/quickride/RideDetailsScreen';
 import RideSuccessScreen from '../screens/quickride/RideSuccessScreen';
 import NavigationScreen from '../screens/quickride/NavigationScreen';
+import OutstationDetailsScreen from '../screens/outstation/OutstationDetailsScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -58,6 +59,12 @@ export default function RootNavigator() {
         {/* QuickRide — the live ride, pushed over the tabs. Success replaces
             details, so a back swipe can't reach a ride that is already over. */}
         <Stack.Screen name="RideDetails" component={RideDetailsScreen} />
+        {/* Outstation shares the success screen — a finished trip pays out the
+            same way, through the same UPI QR. */}
+        <Stack.Screen
+          name="OutstationDetails"
+          component={OutstationDetailsScreen}
+        />
         <Stack.Screen
           name="RideSuccess"
           component={RideSuccessScreen}

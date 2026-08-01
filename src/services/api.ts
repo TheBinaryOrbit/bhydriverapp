@@ -42,6 +42,24 @@ export const API = {
     quickRideBids: '/quick-ride-bids',
     /** Live bids only — used to rebuild "bid pending" state on resume. */
     quickRideBidsMy: '/quick-ride-bids/my',
+
+    // Outstation — see `docs/driver-outstation-ride.md`.
+    /** Role-aware "where was I?" resume call. Takes `?latitude&longitude`. */
+    outstationRidesLive: '/outstation-rides/live',
+    /**
+     * A first-class browse list, not a polling fallback: a trip departing next
+     * Friday is never pushed to a driver who is offline today. Takes
+     * `?latitude&longitude&bookingType=now|later`.
+     */
+    outstationRidesAvailable: '/outstation-rides/available',
+    /** Trip history. Also takes `?by=createdAt|pickupAt`. */
+    outstationRidesMy: '/outstation-rides/my',
+    /** Append `/:id`, plus `/start`, `/pickup`, `/complete` or `/cancel`. */
+    outstationRides: '/outstation-rides',
+    /** `POST` to place or lower a bid. */
+    outstationRideBids: '/outstation-ride-bids',
+    /** Every standing bid — outstation bids never expire, so none are filtered. */
+    outstationRideBidsMy: '/outstation-ride-bids/my',
   },
   /**
    * URLs Signzy redirects the KYC WebView to when the driver finishes.

@@ -2,6 +2,7 @@ import type { NavigatorScreenParams } from '@react-navigation/native';
 
 import type { OnboardingPrefill } from '../screens/onboarding/types';
 import type { RidePaymentDetails } from '../types/driver';
+import type { OutstationRide } from '../types/outstation';
 import type { LatLng, QuickRide } from '../types/quickRide';
 
 export type MainTabParamList = {
@@ -53,6 +54,15 @@ export type RootStackParamList = {
    * while `GET /quick-rides/:id` — the actual source of truth — is in flight.
    */
   RideDetails: { rideId: string; ride?: QuickRide };
+
+  // Outstation
+  /**
+   * The committed outstation trip. Its own screen rather than a mode of
+   * `RideDetails`: there is an extra status between assigned and in-progress,
+   * two driver actions instead of one, and a departure that may be weeks away —
+   * branching one screen across all of that would hide more than it shares.
+   */
+  OutstationDetails: { rideId: string; ride?: OutstationRide };
   /**
    * In-app turn-by-turn guidance to one leg of the trip.
    *

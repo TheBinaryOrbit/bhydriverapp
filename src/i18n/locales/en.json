@@ -241,13 +241,101 @@
     "blockUnknownTitle": "Couldn't go online",
     "blockUnknownBody": "Something went wrong. Please try again."
   },
+  "busy": {
+    "quickRideTitle": "You're on a QuickRide",
+    "quickRideBody": "Finish it and new work starts arriving again straight away.",
+    "outstationTitle": "You already have an outstation trip",
+    "outstationBody": "One accepted trip at a time. Your standing bids on other trips are unaffected.",
+    "imminentTitle": "Your trip is about to depart",
+    "imminentBody": "New work is paused within two hours of an outstation pickup, so you can set off on time.",
+    "title": "You can't take work right now",
+    "body": "Something you're already committed to is holding you. Pull down to check again."
+  },
   "outstation": {
-    "title": "Outstation rides",
-    "body": "Long-distance, pre-booked trips between cities — planned, not bid on.",
-    "point1": "Accept trips scheduled days in advance",
-    "point2": "One-way and round trips with fixed routes",
-    "point3": "Fares agreed up front, no bidding",
-    "comingSoon": "Coming soon"
+    "departToday": "Today, {{time}}",
+    "departTomorrow": "Tomorrow, {{time}}",
+    "departUnknown": "Departure not set",
+    "departOverdue": "overdue",
+    "inMinutes_one": "in {{count}} min",
+    "inMinutes_other": "in {{count}} min",
+    "inHours_one": "in {{count}} hour",
+    "inHours_other": "in {{count}} hours",
+    "inDays_one": "in {{count}} day",
+    "inDays_other": "in {{count}} days",
+
+    "tripCount_one": "{{count}} trip",
+    "tripCount_other": "{{count}} trips",
+    "filter": {
+      "all": "All",
+      "now": "Leaving now",
+      "later": "Scheduled"
+    },
+    "offlineNote": "You're offline. Trips below are still yours to bid on — you just won't be alerted when new ones come up.",
+
+    "bidStanding": "Waiting for the rider",
+    "bidNote": "Outstation bids don't expire. Yours stays with the rider until they choose, you withdraw it, or the trip is taken.",
+    "withdrawBody": "The rider won't see your offer any more. You can bid again while the trip is open.",
+
+    "tripBooked": "Your upcoming trip",
+    "tripBookedBody": "Tap to see the details.",
+    "tripUnderway": "Your trip is under way",
+
+    "empty": {
+      "noneTitle": "No trips nearby",
+      "noneBody": "Long-distance trips within 20 km will show up here, including ones booked for later this month.",
+      "filteredTitle": "Nothing on this filter",
+      "filteredBody": "No trips match the departure you picked. Try All to see everything on offer.",
+      "busyTitle": "No trips right now",
+      "busyBody": "You'll start seeing outstation trips again once you're free to take one."
+    },
+    "errorTitle": "Couldn't load outstation trips"
+  },
+  "outstationRide": {
+    "title": "Your trip",
+    "titleBooked": "Upcoming trip",
+    "titlePickup": "Pick up the rider",
+    "titleTrip": "Trip in progress",
+
+    "bannerAssigned": "This trip is yours. Come back when it's time to set off.",
+    "bannerArriving": "You're on the way — the rider can see you moving.",
+    "bannerInProgress": "The rider is on board. Head to the drop-off.",
+
+    "departs": "Departs",
+    "departsNote": "You can keep taking QuickRides until two hours before this departure. Nothing is shared with the rider until you set off.",
+    "route": "Route",
+    "navigateDropMaps": "Navigate in Google Maps",
+    "navigateDropNote": "Google Maps opens in a separate app. Come back here to complete the trip when you arrive.",
+    "mapsFailed": "Couldn't open Google Maps on this phone.",
+
+    "start": "Set off",
+    "startTitle": "Set off for the pickup?",
+    "startBody": "This tells the rider you're on the way and starts sharing your location with them. Only do it when you're actually leaving.",
+    "startConfirm": "Set off",
+    "startFailed": "Couldn't start the trip. Please try again.",
+
+    "confirmPickup": "Confirm pickup",
+    "otpTitle": "Pickup OTP",
+    "otpBody": "Ask the rider for their 4-digit code and enter it once they're in the car.",
+    "otpFailed": "Couldn't confirm the pickup. Please try again.",
+    "otpLocked": "Too many incorrect attempts. This trip is locked — please cancel and ask the rider to rebook.",
+    "otpLockedBody": "This trip is locked after too many wrong codes. Cancel it and ask the rider to book again.",
+    "startFirst": "Set off first, then confirm the pickup.",
+
+    "complete": "Complete trip",
+    "completeTitle": "Complete this trip?",
+    "completeBody": "Only do this once the rider has reached the drop-off.",
+    "completeFailed": "Couldn't complete the trip. Please try again.",
+
+    "cancelTrip": "Cancel trip",
+    "cancelTitle": "Cancel this trip?",
+    "cancelBody": "Tell the rider why. Cancelling a booked trip affects the trips you're offered.",
+    "cancelConfirm": "Cancel trip",
+    "cancelled": "Trip cancelled.",
+    "cancelFailed": "Couldn't cancel the trip.",
+    "cancelledByRider": "The rider cancelled this trip.",
+
+    "trackingFailed": "We couldn't share your location. The rider can't see you moving — check your connection and that location is on.",
+    "loadFailed": "Couldn't load this trip."
   },
   "history": {
     "title": "Your rides",
@@ -261,6 +349,7 @@
       "cancelled": "Cancelled",
       "expired": "Expired",
       "in_progress": "In progress",
+      "arriving": "On the way",
       "assigned": "Assigned",
       "searching": "Searching"
     },
@@ -290,10 +379,15 @@
       "clear": "Clear",
       "clearAll": "Clear filters",
       "reset": "Reset",
-      "apply": "Apply"
+      "apply": "Apply",
+      "byLabel": "Dates mean",
+      "by": {
+        "createdAt": "When booked",
+        "pickupAt": "When departing"
+      }
     },
-    "outstationTitle": "No outstation history",
-    "outstationBody": "Outstation trips aren't live yet. When they are, the ones you've driven will be listed here."
+    "outstationTitle": "No outstation trips yet",
+    "outstationBody": "Long-distance trips you've driven will be listed here with what you earned."
   },
   "ride": {
     "title": "Your ride",
