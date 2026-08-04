@@ -21,17 +21,19 @@ import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import KeyboardSafeView from '../../components/KeyboardSafeView';
-import PrimaryButton from '../../components/PrimaryButton';
 import ScreenHeader from '../../components/ScreenHeader';
 import { CARD_SHADOW } from '../../components/profile/MenuSection';
 import OtpBoxes from '../../components/quickride/OtpBoxes';
 import RouteLine from '../../components/quickride/RouteLine';
+import RoutePreviewMap from '../../components/quickride/RoutePreviewMap';
+import SwipeAction from '../../components/quickride/SwipeAction';
 import {
   distance,
   duration,
   rupees,
   summaryLine,
 } from '../../components/quickride/format';
+import { useDriverLocation } from '../../hooks/useDriverLocation';
 import type { RootStackParamList } from '../../navigation/types';
 import { ApiError } from '../../services/api';
 import { driverSocket } from '../../services/driverSocket';
@@ -88,6 +90,13 @@ export default function RideDetailsScreen({ navigation, route }: Props) {
 
   const status: RideStatus = ride?.rideStatus ?? 'assigned';
   const phase = status === 'in_progress' ? 'drop' : 'pickup';
+
+  /**
+   * The driver's own position, for the map's first leg. Read-only — duty is
+   * held on for the length of the ride, so the shared watch is already running
+   * and this only subscribes to what it publishes.
+   */
+  const { location: driverAt } = useDriverLocation();
 
   /* ------------------------------------------------ loading */
 
@@ -259,43 +268,36 @@ export default function RideDetailsScreen({ navigation, route }: Props) {
     [locked, navigation, patch, rideId, starting, t, token],
   );
 
-  const handleComplete = useCallback(() => {
+  const handleComplete = useCallback( async () => {
     if (!token || completing) {
       return;
     }
-    Alert.alert(t('ride.completeTitle'), t('ride.completeBody'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('ride.completeConfirm'),
-        onPress: async () => {
-          setCompleting(true);
-          try {
-            const { ride: done, paymentDetails } = await completeRide(
-              token,
-              rideId,
-            );
-            goneRef.current = true;
-            navigation.replace('RideSuccess', {
-              rideId,
-              finalFare: done.finalFare ?? ride?.finalFare,
-              completedAt: done.completedAt ?? undefined,
-              dropLocationName: ride?.dropLocationName,
-              paymentDetails,
-            });
-          } catch (err) {
-            // 409 = the OTP step never happened; drop back to the pickup phase.
-            if (err instanceof ApiError && err.status === 409) {
-              patch({ rideStatus: 'assigned' });
-            }
-            notify(
-              err instanceof Error ? err.message : t('ride.completeFailed'),
-            );
-          } finally {
-            setCompleting(false);
-          }
-        },
-      },
-    ]);
+
+    setCompleting(true);
+    try {
+      const { ride: done, paymentDetails } = await completeRide(
+        token,
+        rideId,
+      );
+      goneRef.current = true;
+      navigation.replace('RideSuccess', {
+        rideId,
+        finalFare: done.finalFare ?? ride?.finalFare,
+        completedAt: done.completedAt ?? undefined,
+        dropLocationName: ride?.dropLocationName,
+        paymentDetails,
+      });
+    } catch (err) {
+      // 409 = the OTP step never happened; drop back to the pickup phase.
+      if (err instanceof ApiError && err.status === 409) {
+        patch({ rideStatus: 'assigned' });
+      }
+      notify(
+        err instanceof Error ? err.message : t('ride.completeFailed'),
+      );
+    } finally {
+      setCompleting(false);
+    }
   }, [completing, navigation, patch, ride, rideId, t, token]);
 
   const handleCancel = useCallback(() => {
@@ -399,9 +401,36 @@ export default function RideDetailsScreen({ navigation, route }: Props) {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
-        <PhaseBanner phase={phase} />
+        {/* The leg being driven, first: here to the pickup, then here to the
+            drop. Same rule as the address card below — one destination at a
+            time, the one the driver is actually going to. */}
+        <RoutePreviewMap
+          from={driverAt}
+          to={toLatLng(
+            phase === 'pickup' ? ride.pickupCoordinates : ride.dropCoordinates,
+          )}
+        />
 
+        {/* Then the OTP: at the pickup it is the only thing standing between
+            the driver and starting the ride, so it doesn't make them scroll. */}
+        {status === 'assigned' ? (
+          <OtpPanel
+            otp={otp}
+            onChange={next => {
+              setOtp(next);
+              setOtpError(null);
+            }}
+            onComplete={handleStart}
+            error={otpError}
+            locked={locked}
+            busy={starting}
+          />
+        ) : null}
+
+        {/* Then the rider, and the call button that goes with them. */}
         <RiderCard ride={ride} onCall={handleCall} />
+
+        <PhaseBanner phase={phase} />
 
         <FareCard ride={ride} />
 
@@ -422,6 +451,9 @@ export default function RideDetailsScreen({ navigation, route }: Props) {
             hideDrop={status === 'assigned'}
           />
 
+          {/* A tap, not a swipe: opening directions is reversible, and it is
+              the control the driver reaches for most often — sometimes while
+              already moving. Nothing here needs protecting from a stray touch. */}
           <Pressable
             onPress={handleNavigate}
             className="mt-4 flex-row items-center justify-center rounded-xl border py-3.5 active:opacity-70"
@@ -440,35 +472,16 @@ export default function RideDetailsScreen({ navigation, route }: Props) {
           </Pressable>
         </View>
 
-        {status === 'assigned' ? (
-          <OtpPanel
-            otp={otp}
-            onChange={next => {
-              setOtp(next);
-              setOtpError(null);
-            }}
-            onComplete={handleStart}
-            error={otpError}
-            locked={locked}
-            busy={starting}
-          />
-        ) : null}
-
         {canCancel ? (
-          <Pressable
-            onPress={handleCancel}
-            disabled={cancelling}
-            className={`mt-6 items-center py-3 ${
-              cancelling ? 'opacity-50' : 'active:opacity-60'
-            }`}
-          >
-            <Text
-              className="text-sm font-bold"
-              style={{ color: colors.danger }}
-            >
-              {t('ride.cancelRide')}
-            </Text>
-          </Pressable>
+          <View className="mt-6">
+            <SwipeAction
+              label={t('ride.cancelRide')}
+              icon="close"
+              tone={colors.danger}
+              loading={cancelling}
+              onConfirm={handleCancel}
+            />
+          </View>
         ) : null}
       </ScrollView>
 
@@ -477,19 +490,19 @@ export default function RideDetailsScreen({ navigation, route }: Props) {
         style={{ paddingBottom: insets.bottom + 12 }}
       >
         {status === 'assigned' ? (
-          <PrimaryButton
+          <SwipeAction
             label={t('ride.startRide')}
             icon="play-arrow"
             loading={starting}
             disabled={locked || otp.length < OTP_LENGTH}
-            onPress={() => handleStart(otp)}
+            onConfirm={() => handleStart(otp)}
           />
         ) : (
-          <PrimaryButton
+          <SwipeAction
             label={t('ride.completeRide')}
             icon="check-circle"
             loading={completing}
-            onPress={handleComplete}
+            onConfirm={handleComplete}
           />
         )}
       </View>
@@ -508,7 +521,7 @@ function PhaseBanner({ phase }: { phase: 'pickup' | 'drop' }) {
 
   return (
     <View
-      className="mb-4 flex-row items-center rounded-2xl px-4 py-3"
+      className="mt-4 flex-row items-center rounded-2xl px-4 py-3"
       style={{
         backgroundColor: pickup ? colors.warningSurface : colors.successSurface,
       }}
@@ -535,7 +548,7 @@ function RiderCard({ ride, onCall }: { ride: QuickRide; onCall: () => void }) {
 
   return (
     <View
-      className="flex-row items-center rounded-2xl border border-border bg-white p-4"
+      className="mt-4 flex-row items-center rounded-2xl border border-border bg-white p-4"
       style={CARD_SHADOW}
     >
       {rider?.profileImageUrl ? (

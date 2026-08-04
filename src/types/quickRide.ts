@@ -214,7 +214,10 @@ export function toRideCard(raw?: RawRideCard | null): RideCard | null {
 
   const card = { rideId } as RideCard;
   Object.entries(fields).forEach(([key, value]) => {
-    if (value !== undefined) {
+    // `null` counts as absent, not as a value. A re-dispatch that sends
+    // `bidBounds: null` is saying "not carrying this", and writing the null
+    // through would blank the bid range the driver is about to bid inside.
+    if (value !== undefined && value !== null) {
       (card as Record<string, unknown>)[key] = value;
     }
   });

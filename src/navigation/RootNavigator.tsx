@@ -12,6 +12,7 @@ import BottomTabs from './BottomTabs';
 import EditPersonalInfoScreen from '../screens/profile/EditPersonalInfoScreen';
 import EditVehicleScreen from '../screens/profile/EditVehicleScreen';
 import ManagePaymentScreen from '../screens/profile/ManagePaymentScreen';
+import MyReviewsScreen from '../screens/profile/MyReviewsScreen';
 import KycScreen from '../screens/profile/KycScreen';
 import ContentPageScreen from '../screens/profile/ContentPageScreen';
 import RideDetailsScreen from '../screens/quickride/RideDetailsScreen';
@@ -53,6 +54,7 @@ export default function RootNavigator() {
         />
         <Stack.Screen name="EditVehicle" component={EditVehicleScreen} />
         <Stack.Screen name="ManagePayment" component={ManagePaymentScreen} />
+        <Stack.Screen name="MyReviews" component={MyReviewsScreen} />
         <Stack.Screen name="Kyc" component={KycScreen} />
         <Stack.Screen name="ContentPage" component={ContentPageScreen} />
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -6,8 +6,8 @@ import { useTranslation } from 'react-i18next';
 
 import FareSlider from './FareSlider';
 import RouteLine from './RouteLine';
+import SwipeAction from './SwipeAction';
 import { distance, duration, rupees, summaryLine } from './format';
-import PrimaryButton from '../PrimaryButton';
 import { colors } from '../../theme/colors';
 import type { BidBounds } from '../../types/quickRide';
 
@@ -17,6 +17,8 @@ import type { BidBounds } from '../../types/quickRide';
  * bidding is the one part of the two products that is genuinely identical.
  */
 export type BidSheetCard = {
+  /** Identifies the offer, so one ride's bounds can't be reused for another. */
+  rideId?: string;
   bidBounds?: BidBounds;
   offeredFare?: number;
   pickupLocationName?: string;
@@ -64,7 +66,7 @@ export default function BidSheet({
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
 
-  const bounds = card?.bidBounds;
+  const bounds = useStickyBounds(card);
   const lowering =
     bid !== undefined &&
     bid.status !== 'expired' &&
@@ -205,18 +207,22 @@ export default function BidSheet({
                 </View>
               ) : null}
 
-              <PrimaryButton
-                className="mt-6"
-                label={
-                  lowering
-                    ? t('quickRide.confirmLower', { amount: rupees(fare) })
-                    : t('quickRide.confirmBid', { amount: rupees(fare) })
-                }
-                icon="check"
-                loading={submitting}
-                disabled={exhausted}
-                onPress={() => onSubmit(fare)}
-              />
+              {/* Swiped, not tapped — this is the moment the money is
+                  committed, and it is one thumb-width from a slider the driver
+                  was just dragging. */}
+              <View className="mt-6">
+                <SwipeAction
+                  label={
+                    lowering
+                      ? t('quickRide.swipeToLower', { amount: rupees(fare) })
+                      : t('quickRide.swipeToConfirm', { amount: rupees(fare) })
+                  }
+                  icon="check"
+                  loading={submitting}
+                  disabled={exhausted}
+                  onConfirm={() => onSubmit(fare)}
+                />
+              </View>
 
               <Text className="mt-3 text-center text-[11px] leading-4 text-muted">
                 {note ?? t('quickRide.bidNote')}
@@ -227,6 +233,43 @@ export default function BidSheet({
       </Pressable>
     </Modal>
   );
+}
+
+/** A range the driver can actually bid inside. `{ min: 0, max: 0 }` is not. */
+function usable(bounds?: BidBounds | null): bounds is BidBounds {
+  return (
+    bounds != null &&
+    typeof bounds.min === 'number' &&
+    typeof bounds.max === 'number' &&
+    bounds.max > bounds.min
+  );
+}
+
+/**
+ * The bid range, held for as long as the sheet is on the same ride.
+ *
+ * Bidding again after one expires must offer the range the driver bid inside
+ * the first time. Left to the card alone it might not: a re-dispatch can arrive
+ * without bounds, and the fallback below it — a floor of ₹0 and a ceiling of
+ * whatever the rider offered — is a *different, wider* range that the server
+ * would then reject. So the last usable bounds for this ride win until the
+ * sheet moves to a different one.
+ */
+function useStickyBounds(card: BidSheetCard | null): BidBounds | undefined {
+  const held = useRef<{ rideId?: string; bounds: BidBounds } | null>(null);
+
+  if (card && usable(card.bidBounds)) {
+    held.current = { rideId: card.rideId, bounds: card.bidBounds };
+  }
+
+  if (usable(card?.bidBounds)) {
+    return card!.bidBounds;
+  }
+  // Only for the ride it was recorded on — `rideId` is optional on the card
+  // type, so two unidentified offers must not share one range.
+  return held.current && card?.rideId && held.current.rideId === card.rideId
+    ? held.current.bounds
+    : undefined;
 }
 
 function QuickPick({

@@ -15,7 +15,8 @@ import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import KeyboardSafeView from '../../components/KeyboardSafeView';
-import PrimaryButton from '../../components/PrimaryButton';
+import RoutePreviewMap from '../../components/quickride/RoutePreviewMap';
+import SwipeAction from '../../components/quickride/SwipeAction';
 import ScreenHeader from '../../components/ScreenHeader';
 import {
   departureLabel,
@@ -148,8 +149,12 @@ export default function OutstationDetailsScreen({ navigation, route }: Props) {
 
   /* ------------------------------------------------ tracking */
 
-  const { request: requestLocation, start: startWatching, stop: stopWatching } =
-    useDriverLocation();
+  const {
+    location: driverAt,
+    request: requestLocation,
+    start: startWatching,
+    stop: stopWatching,
+  } = useDriverLocation();
 
   /**
    * `arriving` is the only status a rider can watch, and the only thing feeding
@@ -312,47 +317,33 @@ export default function OutstationDetailsScreen({ navigation, route }: Props) {
   }, [ride?.bookedBy?.phoneNumber, t]);
 
   /**
-   * `/start` — no OTP and no body. Confirmed first because it is the moment
-   * the driver's position starts being broadcast, and on a trip booked days
-   * ahead a stray tap is easy and the consequence is invisible.
+   * `/start` — no OTP and no body.
+   *
+   * No confirmation dialog: the swipe **is** the confirmation. It used to be
+   * guarded because a stray tap on a trip booked days ahead would silently
+   * start broadcasting the driver's position, and that is exactly the accident
+   * a 75%-of-the-track drag cannot have.
    */
-  const handleStart = useCallback(() => {
+  const handleStart = useCallback(async () => {
     if (!token || starting) {
       return;
     }
-    Alert.alert(
-      t('outstationRide.startTitle'),
-      t('outstationRide.startBody'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('outstationRide.startConfirm'),
-          onPress: async () => {
-            setStarting(true);
-            try {
-              const { ride: started } = await startOutstationRide(
-                token,
-                rideId,
-              );
-              setRide(started);
-            } catch (err) {
-              // 409 = not `assigned` any more. Already started elsewhere, or
-              // cancelled underneath us — refetching settles which.
-              if (err instanceof ApiError && err.status === 409) {
-                load();
-              }
-              notify(
-                err instanceof Error
-                  ? err.message
-                  : t('outstationRide.startFailed'),
-              );
-            } finally {
-              setStarting(false);
-            }
-          },
-        },
-      ],
-    );
+    setStarting(true);
+    try {
+      const { ride: started } = await startOutstationRide(token, rideId);
+      setRide(started);
+    } catch (err) {
+      // 409 = not `assigned` any more. Already started elsewhere, or cancelled
+      // underneath us — refetching settles which.
+      if (err instanceof ApiError && err.status === 409) {
+        load();
+      }
+      notify(
+        err instanceof Error ? err.message : t('outstationRide.startFailed'),
+      );
+    } finally {
+      setStarting(false);
+    }
   }, [load, rideId, starting, t, token]);
 
   /** `/pickup` — the rider reads out a 4-digit code and boards. */
@@ -409,47 +400,36 @@ export default function OutstationDetailsScreen({ navigation, route }: Props) {
     [confirming, locked, navigation, patch, rideId, t, token],
   );
 
-  const handleComplete = useCallback(() => {
+  /** `/complete` — the swipe is the confirmation; see `handleStart`. */
+  const handleComplete = useCallback(async () => {
     if (!token || completing) {
       return;
     }
-    Alert.alert(
-      t('outstationRide.completeTitle'),
-      t('outstationRide.completeBody'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('ride.completeConfirm'),
-          onPress: async () => {
-            setCompleting(true);
-            try {
-              const { ride: done, paymentDetails } =
-                await completeOutstationRide(token, rideId);
-              goneRef.current = true;
-              navigation.replace('RideSuccess', {
-                rideId,
-                finalFare: done.finalFare ?? ride?.finalFare,
-                completedAt: done.completedAt ?? undefined,
-                dropLocationName: ride?.dropLocationName,
-                paymentDetails,
-              });
-            } catch (err) {
-              // 409 = the pickup step never happened; go back to `arriving`.
-              if (err instanceof ApiError && err.status === 409) {
-                patch({ rideStatus: 'arriving' });
-              }
-              notify(
-                err instanceof Error
-                  ? err.message
-                  : t('outstationRide.completeFailed'),
-              );
-            } finally {
-              setCompleting(false);
-            }
-          },
-        },
-      ],
-    );
+    setCompleting(true);
+    try {
+      const { ride: done, paymentDetails } = await completeOutstationRide(
+        token,
+        rideId,
+      );
+      goneRef.current = true;
+      navigation.replace('RideSuccess', {
+        rideId,
+        finalFare: done.finalFare ?? ride?.finalFare,
+        completedAt: done.completedAt ?? undefined,
+        dropLocationName: ride?.dropLocationName,
+        paymentDetails,
+      });
+    } catch (err) {
+      // 409 = the pickup step never happened; go back to `arriving`.
+      if (err instanceof ApiError && err.status === 409) {
+        patch({ rideStatus: 'arriving' });
+      }
+      notify(
+        err instanceof Error ? err.message : t('outstationRide.completeFailed'),
+      );
+    } finally {
+      setCompleting(false);
+    }
   }, [completing, navigation, patch, ride, rideId, t, token]);
 
   /**
@@ -563,13 +543,37 @@ export default function OutstationDetailsScreen({ navigation, route }: Props) {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
+        {/* The leg being driven, first: here to the pickup, then here to the
+            drop. Same rule as the route card below — one destination at a
+            time, the one the driver is actually going to. */}
+        <RoutePreviewMap from={driverAt} to={target} />
+
+        {/* Then the OTP: at the pickup it is the only thing standing between
+            the driver and the trip starting, so it doesn't make them scroll. */}
+        {status === 'arriving' ? (
+          <OtpPanel
+            otp={otp}
+            onChange={next => {
+              setOtp(next);
+              setOtpError(null);
+            }}
+            onComplete={handlePickup}
+            error={otpError}
+            locked={locked}
+            busy={confirming}
+          />
+        ) : null}
+
+        {/* Then the rider, and the call button that goes with them. */}
+        <RiderCard ride={ride} onCall={handleCall} />
+
         <StatusBanner status={status} />
 
         {status === 'assigned' ? <DepartureCard ride={ride} /> : null}
 
         {tracking && trackingFailed ? (
           <View
-            className="mb-4 flex-row items-start rounded-2xl p-4"
+            className="mt-4 flex-row items-start rounded-2xl p-4"
             style={{ backgroundColor: colors.dangerSurface }}
           >
             <MaterialIcons
@@ -586,8 +590,6 @@ export default function OutstationDetailsScreen({ navigation, route }: Props) {
             </Text>
           </View>
         ) : null}
-
-        <RiderCard ride={ride} onCall={handleCall} />
 
         <FareCard ride={ride} />
 
@@ -640,34 +642,18 @@ export default function OutstationDetailsScreen({ navigation, route }: Props) {
           )}
         </View>
 
-        {status === 'arriving' ? (
-          <OtpPanel
-            otp={otp}
-            onChange={next => {
-              setOtp(next);
-              setOtpError(null);
-            }}
-            onComplete={handlePickup}
-            error={otpError}
-            locked={locked}
-            busy={confirming}
-          />
-        ) : null}
-
         {/* `in_progress` is the one status with no way back — the rider is in
             the car and hundreds of kilometres from home. */}
         {status === 'assigned' || status === 'arriving' ? (
-          <Pressable
-            onPress={handleCancel}
-            disabled={cancelling}
-            className={`mt-6 items-center py-3 ${
-              cancelling ? 'opacity-50' : 'active:opacity-60'
-            }`}
-          >
-            <Text className="text-sm font-bold" style={{ color: colors.danger }}>
-              {t('outstationRide.cancelTrip')}
-            </Text>
-          </Pressable>
+          <View className="mt-6">
+            <SwipeAction
+              label={t('outstationRide.cancelTrip')}
+              icon="close"
+              tone={colors.danger}
+              loading={cancelling}
+              onConfirm={handleCancel}
+            />
+          </View>
         ) : null}
       </ScrollView>
 
@@ -676,26 +662,26 @@ export default function OutstationDetailsScreen({ navigation, route }: Props) {
         style={{ paddingBottom: insets.bottom + 12 }}
       >
         {status === 'assigned' ? (
-          <PrimaryButton
+          <SwipeAction
             label={t('outstationRide.start')}
             icon="play-arrow"
             loading={starting}
-            onPress={handleStart}
+            onConfirm={handleStart}
           />
         ) : status === 'arriving' ? (
-          <PrimaryButton
+          <SwipeAction
             label={t('outstationRide.confirmPickup')}
             icon="how-to-reg"
             loading={confirming}
             disabled={locked || otp.length < OTP_LENGTH}
-            onPress={() => handlePickup(otp)}
+            onConfirm={() => handlePickup(otp)}
           />
         ) : (
-          <PrimaryButton
+          <SwipeAction
             label={t('outstationRide.complete')}
             icon="check-circle"
             loading={completing}
-            onPress={handleComplete}
+            onConfirm={handleComplete}
           />
         )}
       </View>
@@ -745,7 +731,7 @@ function StatusBanner({ status }: { status: OutstationRideStatus }) {
 
   return (
     <View
-      className="mb-4 flex-row items-center rounded-2xl px-4 py-3"
+      className="mt-4 flex-row items-center rounded-2xl px-4 py-3"
       style={{ backgroundColor: copy.bg }}
     >
       <MaterialIcons name={copy.icon} size={18} color={copy.fg} />
@@ -768,7 +754,7 @@ function DepartureCard({ ride }: { ride: OutstationRide }) {
 
   return (
     <View
-      className="mb-4 rounded-2xl border border-border bg-white p-4"
+      className="mt-4 rounded-2xl border border-border bg-white p-4"
       style={CARD_SHADOW}
     >
       <Text className="text-xs font-bold uppercase tracking-wide text-muted">
@@ -801,7 +787,7 @@ function RiderCard({
 
   return (
     <View
-      className="flex-row items-center rounded-2xl border border-border bg-white p-4"
+      className="mt-4 flex-row items-center rounded-2xl border border-border bg-white p-4"
       style={CARD_SHADOW}
     >
       {rider?.profileImageUrl ? (

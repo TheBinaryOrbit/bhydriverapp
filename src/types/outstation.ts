@@ -217,7 +217,8 @@ export function toOutstationCard(
 
   const card = { rideId } as OutstationCard;
   Object.entries(fields).forEach(([key, value]) => {
-    if (value !== undefined) {
+    // `null` counts as absent — see `toRideCard` for why.
+    if (value !== undefined && value !== null) {
       (card as Record<string, unknown>)[key] = value;
     }
   });

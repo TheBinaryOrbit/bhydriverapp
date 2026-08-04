@@ -35,6 +35,8 @@ export type RootStackParamList = {
   /** A driver may own exactly one vehicle, so this always targets that one. */
   EditVehicle: undefined;
   ManagePayment: undefined;
+  /** Ratings riders left. Always the signed-in driver's own — no id needed. */
+  MyReviews: undefined;
   /**
    * Aadhaar verification status + the DigiLocker WebView flow.
    *

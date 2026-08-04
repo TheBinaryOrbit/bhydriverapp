@@ -90,6 +90,50 @@ export function vehicleTypeOf(vehicle: Vehicle): VehicleType | null {
     : null;
 }
 
+/**
+ * A vehicle as the legacy v2 API returns it, reduced to the fields onboarding
+ * can actually reuse.
+ *
+ * `vehicleType` is a v2 type *name* (`"SEDAN"`), not a v3 `vehicleTypeId` —
+ * match it with `matchVehicleType()` before it touches the form.
+ *
+ * The image fields are **absolute** URLs: v2 stores bare paths
+ * (`/vehicle/rc/…jpg`), which `legacyAssetUrl()` resolves as the list is
+ * parsed, so nothing downstream has to know where v2 keeps its files.
+ */
+export type LegacyVehicle = {
+  _id: string;
+  vehicleType?: string;
+  registrationNumber?: string;
+  yearOfManufacture?: string;
+  /** ISO timestamp, or absent — v2 didn't require insurance. */
+  insuranceExpDate?: string;
+  /** Vehicle photos in v2's order, which onboarding reads as front/side/back. */
+  vehicleImageUrls: string[];
+  rcFrontImageUrl?: string;
+  rcBackImageUrl?: string;
+};
+
+/**
+ * The v3 vehicle type a legacy type name refers to, or `null` when v2 offered
+ * something v3 no longer does. Matches on slug first, then name, since v2's
+ * names (`"SEDAN"`) read like v3's slugs.
+ */
+export function matchVehicleType(
+  types: VehicleType[],
+  legacyType?: string,
+): VehicleType | null {
+  const wanted = legacyType?.trim().toLowerCase();
+  if (!wanted) {
+    return null;
+  }
+  return (
+    types.find(type => type.slug?.toLowerCase() === wanted) ??
+    types.find(type => type.name?.toLowerCase() === wanted) ??
+    null
+  );
+}
+
 /** One UPI id per driver, used for payouts. */
 export type PaymentDetails = {
   _id: string;

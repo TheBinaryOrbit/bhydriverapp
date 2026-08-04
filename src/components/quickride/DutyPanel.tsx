@@ -1,13 +1,25 @@
-import React from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import {
+  ActivityIndicator,
+  Animated,
+  Easing,
+  Pressable,
+  Text,
+  View,
+} from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useTranslation } from 'react-i18next';
 
 import { CARD_SHADOW } from '../profile/MenuSection';
-import type { DutyBlock } from '../../hooks/useQuickRide';
+import type { DutyBlock } from '../../hooks/useDuty';
 import type { LinkStatus } from '../../services/driverSocket';
 import { colors, navyGradient } from '../../theme/colors';
+
+/** The three duty tints, shared by the mark and the switch track. */
+const TRACK_OFF = 'rgba(255,255,255,0.18)';
+const TRACK_LIVE = '#3ddc84';
+const TRACK_WARN = '#ffb020';
 
 type Props = {
   onDuty: boolean;
@@ -19,8 +31,21 @@ type Props = {
   onGoOffline: () => void;
 };
 
+/** Icon and tint per duty state — the state is read at a glance, not parsed. */
+const STATE_MARK = {
+  dutyLocked: { icon: 'local-taxi', tone: colors.primary },
+  reconnecting: { icon: 'sync', tone: TRACK_WARN },
+  online: { icon: 'bolt', tone: TRACK_LIVE },
+  offline: { icon: 'power-settings-new', tone: 'rgba(255,255,255,0.55)' },
+} as const;
+
 /**
  * The on/off switch for dispatch, and the honest read on the connection.
+ *
+ * One line: mark, state, switch. It sits at the top of the home tab above the
+ * ride cards, and every row it takes is a row of work the driver can't see —
+ * the sentence of explanation it used to carry said nothing the state word and
+ * the switch don't already say.
  *
  * A dropped socket does **not** mean the driver is offline: the server parks
  * their place in the geo index for five minutes. So `reconnecting` gets its own
@@ -40,6 +65,16 @@ export default function DutyPanel({
   const live = onDuty && link === 'connected';
   const frozen = switching || locked;
 
+  // `dutyLocked` / `online` / `offline` / `reconnecting` are also the i18n keys.
+  const state = locked
+    ? 'dutyLocked'
+    : reconnecting
+      ? 'reconnecting'
+      : live
+        ? 'online'
+        : 'offline';
+  const mark = STATE_MARK[state];
+
   return (
     <LinearGradient
       colors={navyGradient}
@@ -47,70 +82,146 @@ export default function DutyPanel({
       end={{ x: 1, y: 1 }}
       style={[{ borderRadius: 20 }, CARD_SHADOW]}
     >
-      <View className="flex-row items-center p-5">
-        <View className="flex-1">
-          <View className="flex-row items-center">
-            <View
-              className="h-2.5 w-2.5 rounded-full"
-              style={{
-                backgroundColor: reconnecting
-                  ? '#ffb020'
-                  : live
-                    ? '#3ddc84'
-                    : 'rgba(255,255,255,0.4)',
-              }}
-            />
-            <Text className="ml-2 text-base font-extrabold text-white">
-              {reconnecting
-                ? t('quickRide.reconnecting')
-                : live
-                  ? t('quickRide.online')
-                  : t('quickRide.offline')}
-            </Text>
-          </View>
-
-          <Text className="mt-1 text-[13px] leading-5 text-white/70">
-            {locked
-              ? t('quickRide.dutyLockedBody')
-              : reconnecting
-                ? t('quickRide.reconnectingBody')
-                : live
-                  ? t('quickRide.onlineBody')
-                  : t('quickRide.offlineBody')}
-          </Text>
+      <View className="flex-row items-center px-4 py-3.5">
+        <View
+          className="h-10 w-10 items-center justify-center rounded-full"
+          style={{ backgroundColor: 'rgba(255,255,255,0.12)' }}
+        >
+          <MaterialIcons name={mark.icon} size={21} color={mark.tone} />
         </View>
 
-        <Pressable
-          onPress={onDuty ? onGoOffline : onGoOnline}
-          disabled={frozen}
-          className={`ml-4 h-12 min-w-[104px] flex-row items-center justify-center rounded-full px-5 ${
-            frozen ? 'opacity-70' : 'active:opacity-85'
-          }`}
-          style={{
-            backgroundColor: onDuty ? 'rgba(255,255,255,0.16)' : colors.tertiary,
-          }}
+        <Text
+          className="ml-3 flex-1 text-[15px] font-extrabold text-white"
+          numberOfLines={1}
         >
-          {switching ? (
-            <ActivityIndicator color={colors.primary} size="small" />
-          ) : (
-            <>
-              <MaterialIcons
-                name={locked ? 'lock' : onDuty ? 'pause' : 'bolt'}
-                size={17}
-                color={colors.primary}
-              />
-              <Text className="ml-1.5 text-sm font-bold text-white">
-                {locked
-                  ? t('quickRide.dutyLocked')
-                  : onDuty
-                    ? t('quickRide.goOffline')
-                    : t('quickRide.goOnline')}
-              </Text>
-            </>
-          )}
-        </Pressable>
+          {t(`quickRide.${state}`)}
+        </Text>
+
+        <DutyToggle
+          value={onDuty}
+          warn={reconnecting}
+          busy={switching}
+          locked={locked}
+          disabled={frozen}
+          onChange={next => (next ? onGoOnline() : onGoOffline())}
+          accessibilityLabel={
+            onDuty ? t('quickRide.goOffline') : t('quickRide.goOnline')
+          }
+        />
       </View>
     </LinearGradient>
+  );
+}
+
+/* ------------------------------------------------ the switch */
+
+const TRACK_W = 60;
+const TRACK_H = 34;
+const KNOB = 28;
+const PAD = 3;
+/** Border is 1px, so the knob travels the track minus its own width, the two
+ *  paddings and the two borders. */
+const TRAVEL = TRACK_W - KNOB - PAD * 2 - 2;
+
+const KNOB_SHADOW = {
+  shadowColor: '#000',
+  shadowOpacity: 0.22,
+  shadowRadius: 2,
+  shadowOffset: { width: 0, height: 1 },
+  elevation: 2,
+};
+
+/**
+ * Duty switch. The track carries the connection state itself — green while the
+ * socket is live, amber while it is reconnecting — so the driver never sees a
+ * switch that says "on" next to a status line that says otherwise.
+ *
+ * `useNativeDriver` is off because the track animates `backgroundColor`, which
+ * the native driver cannot interpolate; one JS-driven value keeps the knob and
+ * the track on the same clock.
+ */
+function DutyToggle({
+  value,
+  disabled = false,
+  busy = false,
+  locked = false,
+  warn = false,
+  onChange,
+  accessibilityLabel,
+}: {
+  value: boolean;
+  disabled?: boolean;
+  /** Mid-flight: spinner in the knob. */
+  busy?: boolean;
+  /** Held on by a ride: padlock in the knob. */
+  locked?: boolean;
+  /** Reconnecting — on, but not yet trustworthy. */
+  warn?: boolean;
+  onChange: (next: boolean) => void;
+  accessibilityLabel?: string;
+}) {
+  const anim = useRef(new Animated.Value(value ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.timing(anim, {
+      toValue: value ? 1 : 0,
+      duration: 180,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [anim, value]);
+
+  return (
+    <Pressable
+      onPress={() => onChange(!value)}
+      disabled={disabled}
+      hitSlop={12}
+      accessibilityRole="switch"
+      accessibilityState={{ checked: value, disabled }}
+      accessibilityLabel={accessibilityLabel}
+      style={{ opacity: disabled ? 0.75 : 1 }}
+    >
+      <Animated.View
+        style={{
+          width: TRACK_W,
+          height: TRACK_H,
+          borderRadius: TRACK_H / 2,
+          padding: PAD,
+          borderWidth: 1,
+          borderColor: 'rgba(255,255,255,0.22)',
+          backgroundColor: anim.interpolate({
+            inputRange: [0, 1],
+            outputRange: [TRACK_OFF, warn ? TRACK_WARN : TRACK_LIVE],
+          }),
+        }}
+      >
+        <Animated.View
+          style={{
+            height: KNOB,
+            width: KNOB,
+            borderRadius: KNOB / 2,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: colors.primary,
+            transform: [
+              {
+                translateX: anim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, TRAVEL],
+                }),
+              },
+            ],
+            ...KNOB_SHADOW,
+          }}
+        >
+          {busy ? (
+            <ActivityIndicator size="small" color={colors.secondary} />
+          ) : locked ? (
+            <MaterialIcons name="lock" size={14} color={colors.secondary} />
+          ) : null}
+        </Animated.View>
+      </Animated.View>
+    </Pressable>
   );
 }
 

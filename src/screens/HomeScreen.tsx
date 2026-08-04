@@ -4,7 +4,9 @@ import { useTranslation } from 'react-i18next';
 
 import Screen from '../components/Screen';
 import SegmentedTabs from '../components/SegmentedTabs';
+import UpiPrompt from '../components/home/UpiPrompt';
 import { useAuth } from '../hooks/useAuth';
+import { useUpiId } from '../hooks/useUpiId';
 import OutstationTab from './home/OutstationTab';
 import QuickRideTab from './home/QuickRideTab';
 
@@ -26,6 +28,13 @@ export default function HomeScreen() {
   const { token, driver } = useAuth();
 
   const [tab, setTab] = useState<HomeTab>('quickRide');
+
+  /**
+   * Payouts go to a UPI id, and a driver can work a whole shift without ever
+   * opening the profile screen that asks for one. So the home screen asks —
+   * once, and only when the cache and then the API both come back empty.
+   */
+  const upi = useUpiId(token);
 
   const firstName = driver?.name?.trim().split(/\s+/)[0];
 
@@ -84,6 +93,14 @@ export default function HomeScreen() {
           <OutstationTab token={token} />
         </View>
       </View>
+
+      <UpiPrompt
+        visible={upi.missing}
+        saving={upi.saving}
+        error={upi.error}
+        onChange={upi.clearError}
+        onSubmit={upi.save}
+      />
     </Screen>
   );
 }

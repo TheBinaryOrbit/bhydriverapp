@@ -5,7 +5,9 @@ import { useTranslation } from 'react-i18next';
 
 import { CARD_SHADOW } from '../profile/MenuSection';
 import RouteLine from './RouteLine';
-import { distance, duration, rupees, summaryLine } from './format';
+import SwipeAction from './SwipeAction';
+import TripStats from './TripStats';
+import { distance, duration, rupees } from './format';
 import { formatCountdown, useCountdown } from '../../hooks/useCountdown';
 import type { PendingBid } from '../../hooks/useQuickRide';
 import { colors } from '../../theme/colors';
@@ -68,18 +70,17 @@ export default function RideRequestCard({
       }`}
       style={CARD_SHADOW}
     >
-      {/* Distance from the driver, and how long the offer has left. */}
+      {/* The offer, and how long it has left. The distances moved into the
+          stat row below, where all three sit together. */}
       <View className="flex-row items-center justify-between">
-        {away ? (
-          <View className="flex-row items-center rounded-full bg-surface px-3 py-1.5">
-            <MaterialIcons name="near-me" size={13} color={colors.secondary} />
-            <Text className="ml-1.5 text-xs font-bold text-secondary">
-              {t('quickRide.away', { distance: away })}
-            </Text>
-          </View>
-        ) : (
-          <View />
-        )}
+        <View className="flex-row items-end">
+          <Text className="text-[34px] font-extrabold leading-[38px] text-secondary">
+            {rupees(card.offeredFare)}
+          </Text>
+          <Text className="mb-1.5 ml-2 text-xs font-semibold text-muted">
+            {t('quickRide.riderOffers')}
+          </Text>
+        </View>
 
         {remaining !== null ? (
           <View className="flex-row items-center">
@@ -98,15 +99,6 @@ export default function RideRequestCard({
         ) : null}
       </View>
 
-      {/* The offer. */}
-      <View className="mt-3 flex-row items-end">
-        <Text className="text-[34px] font-extrabold leading-[38px] text-secondary">
-          {rupees(card.offeredFare)}
-        </Text>
-        <Text className="mb-1.5 ml-2 text-xs font-semibold text-muted">
-          {t('quickRide.riderOffers')}
-        </Text>
-      </View>
       {hint ? (
         <Text className="mt-0.5 text-[11px] font-semibold text-muted">
           {hint}
@@ -120,18 +112,24 @@ export default function RideRequestCard({
         />
       </View>
 
-      <Text className="mt-4 text-xs font-semibold text-muted">
-        {summaryLine([
-          distance(card.estimatedDistanceKm),
-          duration(card.estimatedDurationMin),
-          bounds
-            ? t('quickRide.bidRange', {
-                min: rupees(bounds.min),
-                max: rupees(bounds.max),
-              })
-            : null,
-        ])}
-      </Text>
+      {/* The three numbers that decide whether this ride is worth taking, out
+          of the prose and into a row that can be read at a glance. */}
+      <View className="mt-4">
+        <TripStats
+          toPickup={away}
+          tripDistance={distance(card.estimatedDistanceKm)}
+          tripTime={duration(card.estimatedDurationMin)}
+        />
+      </View>
+
+      {/* {bounds ? (
+        <Text className="mt-3 text-center text-[11px] font-semibold text-muted">
+          {t('quickRide.bidRange', {
+            min: rupees(bounds.min),
+            max: rupees(bounds.max),
+          })}
+        </Text>
+      ) : null} */}
 
       <View className="mt-4 border-t border-border pt-3">
         {bid ? (
@@ -145,21 +143,15 @@ export default function RideRequestCard({
             blocked={blocked}
           />
         ) : (
-          <Pressable
-            onPress={onBid}
+          <SwipeAction
+            label={t('quickRide.swipeToBid')}
+            onConfirm={onBid}
             disabled={busy || blocked}
-            className={`flex-row items-center justify-center rounded-xl bg-tertiary py-3.5 ${
-              busy || blocked ? 'opacity-50' : 'active:opacity-85'
-            }`}
-          >
-            <MaterialIcons name="gavel" size={18} color={colors.primary} />
-            <Text className="ml-2 text-[15px] font-bold text-white">
-              {t('quickRide.placeBid')}
-            </Text>
-          </Pressable>
+            icon="gavel"
+          />
         )}
 
-        {/* Say why the button is dead — a greyed button with no reason reads
+        {/* Say why the swipe is dead — a greyed control with no reason reads
             as a bug to the driver. */}
         {blocked ? (
           <Text className="mt-2 text-center text-[11px] font-semibold text-muted">

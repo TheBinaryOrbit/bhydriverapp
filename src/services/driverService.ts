@@ -1,6 +1,14 @@
-import { API, apiError, apiUrl, bearer } from './api';
+import {
+  API,
+  apiError,
+  apiUrl,
+  bearer,
+  legacyApiUrl,
+  legacyAssetUrl,
+} from './api';
 import type {
   Driver,
+  LegacyVehicle,
   PickedImage,
   Vehicle,
   VehicleType,
@@ -62,6 +70,93 @@ export async function fetchVehicleTypes(): Promise<VehicleType[]> {
   }
   const list: VehicleType[] = Array.isArray(data?.data) ? data.data : [];
   return list.filter(type => type.isActive);
+}
+
+/**
+ * Vehicles the legacy v2 API holds for a phone number, in the order it lists
+ * them.
+ *
+ * Unauthenticated, and takes the phone number rather than a token, because it
+ * runs during onboarding — the v3 account exists but has no v2 identity to
+ * present. An empty list is a normal answer: most drivers are new.
+ */
+export async function fetchLegacyVehicles(
+  phoneNumber: string,
+): Promise<LegacyVehicle[]> {
+  const phone = phoneNumber.replace(/\D/g, '').slice(-10);
+  if (phone.length !== 10) {
+    return [];
+  }
+
+  const res = await fetch(
+    legacyApiUrl(`${API.legacyEndpoints.vehiclesByPhone}/${phone}`),
+  );
+  const data = await res.json().catch(() => null);
+
+  // A number v2 has never seen comes back as `500 Internal Server Error`, so
+  // the status can't tell "nothing to import" apart from "v2 is unwell". Both
+  // are reported as an empty list: a driver who is simply new must not be shown
+  // a server error, and there is nothing to import either way. A dead network
+  // still rejects, which is the case worth reporting.
+  if (!res.ok) {
+    return [];
+  }
+
+  const list = Array.isArray(data?.vehicle) ? data.vehicle : [];
+  return list.map((entry: any) => ({
+    _id: String(entry?._id ?? ''),
+    vehicleType: entry?.vehicleType,
+    registrationNumber: entry?.registrationNumber,
+    yearOfManufacture: entry?.yearOfManufacture
+      ? String(entry.yearOfManufacture)
+      : undefined,
+    insuranceExpDate: entry?.insuranceExpDate,
+    vehicleImageUrls: legacyImageUrls(entry, LEGACY_IMAGE_KEYS.photos),
+    rcFrontImageUrl: legacyImageUrls(entry, LEGACY_IMAGE_KEYS.rcFront)[0],
+    rcBackImageUrl: legacyImageUrls(entry, LEGACY_IMAGE_KEYS.rcBack)[0],
+  }));
+}
+
+/**
+ * The v2 keys each imported photo can arrive under, most specific first.
+ *
+ * v2 names these differently from v3 and has no schema doc, so every spelling
+ * it is known to use is listed rather than assumed. A key that isn't there
+ * simply yields nothing and the driver photographs that document themselves —
+ * exactly what happened before images were imported at all.
+ */
+const LEGACY_IMAGE_KEYS = {
+  photos: [
+    'vehicleImages',
+    'vehicleImage',
+    'vehiclePhotos',
+    'carImages',
+    'carImage',
+    'images',
+    'image',
+  ],
+  rcFront: ['rcFrontImage', 'rcFrontPhoto', 'rcFront', 'rcImage', 'rc'],
+  rcBack: ['rcBackImage', 'rcBackPhoto', 'rcBack'],
+};
+
+/**
+ * Absolute URLs for the first of `keys` the entry actually carries. v2 uses
+ * both a bare string and an array of them depending on the field, so both are
+ * flattened to a list.
+ */
+function legacyImageUrls(entry: any, keys: string[]): string[] {
+  for (const key of keys) {
+    const value = entry?.[key];
+    const urls = (Array.isArray(value) ? value : [value])
+      .map((item: unknown) =>
+        typeof item === 'string' ? legacyAssetUrl(item) : undefined,
+      )
+      .filter((url: string | undefined): url is string => Boolean(url));
+    if (urls.length > 0) {
+      return urls;
+    }
+  }
+  return [];
 }
 
 /**

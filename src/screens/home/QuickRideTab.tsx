@@ -23,6 +23,7 @@ import BusyNote from '../../components/outstation/BusyNote';
 import BidSheet from '../../components/quickride/BidSheet';
 import DutyPanel, { DutyBlockNote } from '../../components/quickride/DutyPanel';
 import RideRequestCard from '../../components/quickride/RideRequestCard';
+import SearchingPulse from '../../components/quickride/SearchingPulse';
 import { CARD_SHADOW } from '../../components/profile/MenuSection';
 import { useDriverLocation } from '../../hooks/useDriverLocation';
 import { useQuickRide } from '../../hooks/useQuickRide';
@@ -44,7 +45,7 @@ export default function QuickRideTab({ token }: Props) {
   const { t } = useTranslation();
   const navigation = useNavigation<Nav>();
 
-  const { location, request, start, stop } = useDriverLocation();
+  const { location, request, start } = useDriverLocation();
 
   // A ride is handed over once. Without this the `liveRide` effect would push
   // the details screen again on every re-render that touches it.
@@ -67,7 +68,6 @@ export default function QuickRideTab({ token }: Props) {
     onRideAssigned: openRide,
     requestLocation: request,
     startWatching: start,
-    stopWatching: stop,
   });
 
   const {
@@ -356,20 +356,20 @@ function EmptyState({ onDuty, link }: { onDuty: boolean; link: string }) {
 
   return (
     <View className="flex-1 items-center justify-center px-6 py-16">
-      <View
-        className="h-20 w-20 items-center justify-center rounded-full"
-        style={{ backgroundColor: colors.surface }}
-      >
-        {waiting ? (
-          <ActivityIndicator color={colors.tertiary} />
-        ) : (
+      {waiting ? (
+        <SearchingPulse />
+      ) : (
+        <View
+          className="h-20 w-20 items-center justify-center rounded-full"
+          style={{ backgroundColor: colors.surface }}
+        >
           <MaterialIcons
             name="power-settings-new"
             size={34}
             color={colors.indicatorBorder}
           />
-        )}
-      </View>
+        </View>
+      )}
 
       <Text className="mt-5 text-base font-bold text-secondary">
         {waiting ? t('quickRide.waitingTitle') : t('quickRide.emptyTitle')}

@@ -6,6 +6,17 @@
  */
 export const API = {
   baseUrl: 'https://08wnx4c4-5000.inc1.devtunnels.ms/api/v3',
+  /**
+   * The previous-generation production API, still holding the vehicles drivers
+   * registered before this app. Read-only and used for exactly one thing —
+   * letting a returning driver import their old vehicle during onboarding — so
+   * it is pinned to production rather than following `baseUrl`.
+   */
+  legacyBaseUrl: 'https://api.bharatyaatri.com/api/v2',
+  legacyEndpoints: {
+    /** Vehicles a phone number owns on v2. Append `/:phoneNumber`. */
+    vehiclesByPhone: '/vehicle/get/driver',
+  },
   endpoints: {
     getOtp: '/auth/otp',
     verifyOtp: '/auth/verify',
@@ -28,6 +39,12 @@ export const API = {
     paymentDetails: '/payment-details',
     /** Driver-app content pages; append `/:idOrSlug` for a single page. */
     appContent: '/app-content/driver',
+    /**
+     * Reviews riders left for a driver. Append `/:driverId`, and page with
+     * `?limit&skip`. Public shape — it is the same call a rider makes to read a
+     * driver's profile, so it carries the driver summary alongside the list.
+     */
+    reviewsByDriver: '/reviews/driver',
 
     // QuickRide — see `docs/driver-quick-ride.md`.
     /** Role-aware "where was I?" resume call. Takes `?latitude&longitude`. */
@@ -80,6 +97,31 @@ export const API = {
 
 export function apiUrl(endpoint: string): string {
   return `${API.baseUrl}${endpoint}`;
+}
+
+export function legacyApiUrl(endpoint: string): string {
+  return `${API.legacyBaseUrl}${endpoint}`;
+}
+
+/**
+ * Absolute URL for a file v2 holds, built from the path it stores
+ * (`/vehicle/rc/110499-1785781518608.jpg`). v2 serves its uploads off the API
+ * host itself, one level above `/api/v2`, so the origin is derived from
+ * `legacyBaseUrl` rather than configured separately.
+ *
+ * Returns `undefined` for a missing path, and passes an already-absolute URL
+ * through untouched — v2 is inconsistent about which of the two it returns.
+ */
+export function legacyAssetUrl(path?: string | null): string | undefined {
+  const trimmed = path?.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+  const origin = API.legacyBaseUrl.replace(/\/api\/v\d+\/?$/, '');
+  return `${origin}/${trimmed.replace(/^\/+/, '')}`;
 }
 
 /**

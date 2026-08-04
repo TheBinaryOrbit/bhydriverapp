@@ -14,6 +14,8 @@ import {
 } from './format';
 import { CARD_SHADOW } from '../profile/MenuSection';
 import RouteLine from '../quickride/RouteLine';
+import SwipeAction from '../quickride/SwipeAction';
+import TripStats from '../quickride/TripStats';
 import { formatCountdown, useCountdown } from '../../hooks/useCountdown';
 import type { OutstationPendingBid } from '../../hooks/useOutstation';
 import { colors } from '../../theme/colors';
@@ -114,22 +116,15 @@ export default function OutstationRequestCard({
         ) : null}
       </View>
 
-      <View className="mt-1.5 flex-row flex-wrap items-center">
-        {lead ? (
-          <View className="mr-2 mt-1 rounded-full bg-surface px-2.5 py-1">
+      {/* The distance to the pickup moved into the stat row below, with the
+          other two numbers. */}
+      {lead ? (
+        <View className="mt-1.5 flex-row">
+          <View className="rounded-full bg-surface px-2.5 py-1">
             <Text className="text-[11px] font-bold text-muted">{lead}</Text>
           </View>
-        ) : null}
-
-        {away ? (
-          <View className="mr-2 mt-1 flex-row items-center rounded-full bg-surface px-2.5 py-1">
-            <MaterialIcons name="near-me" size={12} color={colors.secondary} />
-            <Text className="ml-1 text-[11px] font-bold text-secondary">
-              {t('quickRide.away', { distance: away })}
-            </Text>
-          </View>
-        ) : null}
-      </View>
+        </View>
+      ) : null}
 
       {/* The offer. */}
       <View className="mt-3 flex-row items-end">
@@ -153,10 +148,20 @@ export default function OutstationRequestCard({
         />
       </View>
 
-      <Text className="mt-4 text-xs font-semibold text-muted">
+      {/* The three numbers that decide whether this trip is worth taking, out
+          of the prose and into a row that can be read at a glance. */}
+      <View className="mt-4">
+        <TripStats
+          toPickup={away}
+          tripDistance={distance(card.estimatedDistanceKm)}
+          tripTime={duration(card.estimatedDurationMin)}
+        />
+      </View>
+
+      {/* What's left of the old summary line: the vehicle class this trip
+          wants, and the window a bid has to land inside. */}
+      <Text className="mt-3 text-center text-[11px] font-semibold text-muted">
         {summaryLine([
-          distance(card.estimatedDistanceKm),
-          duration(card.estimatedDurationMin),
           card.vehicleTypeName,
           card.bidBounds
             ? t('quickRide.bidRange', {
@@ -177,18 +182,12 @@ export default function OutstationRequestCard({
             blocked={blocked}
           />
         ) : (
-          <Pressable
-            onPress={onBid}
+          <SwipeAction
+            label={t('quickRide.swipeToBid')}
+            onConfirm={onBid}
             disabled={busy || blocked}
-            className={`flex-row items-center justify-center rounded-xl bg-tertiary py-3.5 ${
-              busy || blocked ? 'opacity-50' : 'active:opacity-85'
-            }`}
-          >
-            <MaterialIcons name="gavel" size={18} color={colors.primary} />
-            <Text className="ml-2 text-[15px] font-bold text-white">
-              {t('quickRide.placeBid')}
-            </Text>
-          </Pressable>
+            icon="gavel"
+          />
         )}
       </View>
     </View>

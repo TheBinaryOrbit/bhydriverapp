@@ -1,12 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 
+import { useDuty, type DutyBlock } from './useDuty';
 import { ApiError } from '../services/api';
-import {
-  driverSocket,
-  type LinkStatus,
-  type OnlineAck,
-} from '../services/driverSocket';
+import { driverSocket, type LinkStatus } from '../services/driverSocket';
 import {
   fetchLiveState,
   placeBid,
@@ -49,14 +46,8 @@ export type LiveRide = {
   ride: QuickRide | null;
 };
 
-/**
- * Why the driver could not go on duty. `kyc` and `vehicle` are actionable and
- * get a button; the rest are transient and get a retry.
- */
-export type DutyBlock = {
-  kind: 'kyc' | 'vehicle' | 'location' | 'connection' | 'unknown';
-  message?: string;
-};
+/** Duty itself lives in `useDuty` — both home tabs show the same switch. */
+export type { DutyBlock };
 
 export type QuickRideState = {
   loading: boolean;
@@ -110,7 +101,6 @@ type Params = {
   /** Prompts for GPS and returns a fix; used right before `driver:online`. */
   requestLocation: () => Promise<{ lat: number; lng: number } | null>;
   startWatching: () => void;
-  stopWatching: () => void;
 };
 
 /** Identifies this product's claim on duty in `driverSocket`. */
@@ -122,14 +112,9 @@ export function useQuickRide({
   onRideAssigned,
   requestLocation,
   startWatching,
-  stopWatching,
 }: Params): QuickRideState {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [link, setLink] = useState<LinkStatus>(driverSocket.linkStatus);
-  const [onDuty, setOnDuty] = useState(driverSocket.isOnDuty);
-  const [switching, setSwitching] = useState(false);
-  const [dutyBlock, setDutyBlock] = useState<DutyBlock | null>(null);
   const [cardsById, setCardsById] = useState<Record<string, RideCard>>({});
   const [bids, setBids] = useState<Record<string, PendingBid>>({});
   const [liveRide, setLiveRide] = useState<LiveRide | null>(null);
@@ -138,12 +123,6 @@ export function useQuickRide({
   const [busyMessage, setBusyMessage] = useState<string | null>(null);
   const [needsVehicle, setNeedsVehicle] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  /**
-   * Another product has pinned duty on — an outstation trip in `arriving`,
-   * whose rider is watching this driver move. The switch has to lock even
-   * though nothing on *this* tab explains why.
-   */
-  const [dutyHeld, setDutyHeld] = useState(driverSocket.dutyState.held);
 
   // Read inside socket handlers, which are registered once and would otherwise
   // close over the first render's values.
@@ -309,8 +288,6 @@ export function useQuickRide({
     driverSocket.connect(token);
 
     const off = [
-      driverSocket.onLinkChange(setLink),
-
       driverSocket.on('ride:request', upsertCard),
 
       // Arrives in two shapes — the full card when you're re-dispatched, the
@@ -354,8 +331,6 @@ export function useQuickRide({
         assignedRef.current(rideId, ride);
       }),
 
-      driverSocket.onDutyChange(state => setDutyHeld(state.held)),
-
       // Reconnected straight into an active ride. Shared with outstation, and
       // a driver can hold one of each at once — so an outstation rejoin must
       // not be dragged onto the QuickRide details screen.
@@ -373,19 +348,12 @@ export function useQuickRide({
         setBusyReason(null);
         setLiveRide(null);
       }),
-
-      // Back in the index with the cached vehicle — no `driver:online` needed.
-      driverSocket.on('driver:resumed', () => {
-        setOnDuty(true);
-        setDutyBlock(null);
-        startWatching();
-      }),
     ];
 
     return () => off.forEach(unsubscribe => unsubscribe());
     // The socket outlives this screen on purpose — unmounting only drops the
     // listeners, never the connection.
-  }, [token, upsertCard, dropCard, startWatching]);
+  }, [token, upsertCard, dropCard]);
 
   /* ---------------------------------------------- duty */
 
@@ -396,37 +364,26 @@ export function useQuickRide({
    */
   const onRide = busy || liveRide !== null;
 
-  const goOnline = useCallback(async () => {
-    if (switching) {
-      return;
-    }
-    setSwitching(true);
-    setDutyBlock(null);
-
-    try {
-      const fix = (await requestLocation()) ?? locationRef.current;
-      if (!fix) {
-        setDutyBlock({ kind: 'location' });
-        return;
-      }
-
-      const ack: OnlineAck = await driverSocket.goOnline({
-        latitude: fix.lat,
-        longitude: fix.lng,
-      });
-
-      if (ack.ok) {
-        setOnDuty(true);
-        startWatching();
-        // The cards that were open before going online are stale by now.
-        load('refresh');
-        return;
-      }
-      setDutyBlock(blockFromAck(ack.message));
-    } finally {
-      setSwitching(false);
-    }
-  }, [load, requestLocation, startWatching, switching]);
+  const {
+    link,
+    onDuty,
+    switching,
+    dutyBlock,
+    dutyLocked,
+    goOnline,
+    goOffline,
+    clearDutyBlock,
+  } = useDuty({
+    requestLocation,
+    startWatching,
+    locked: onRide,
+    // The cards that were open before going online are stale by now.
+    onWentOnline: refresh,
+    onWentOffline: useCallback(() => {
+      setCardsById({});
+      setBids({});
+    }, []),
+  });
 
   /**
    * A rider is watching this driver move, so duty is pinned for as long as the
@@ -441,18 +398,6 @@ export function useQuickRide({
     driverSocket.holdDuty(DUTY_HOLD);
     return () => driverSocket.releaseDuty(DUTY_HOLD);
   }, [onRide]);
-
-  const goOffline = useCallback(() => {
-    // Refused while any hold is registered — see above. The panel disables the
-    // button; this is the backstop for a tap that lands as a ride is assigned.
-    if (!driverSocket.goOffline()) {
-      return;
-    }
-    stopWatching();
-    setOnDuty(false);
-    setCardsById({});
-    setBids({});
-  }, [stopWatching]);
 
   /**
    * A ride in progress owns the driver's duty state.
@@ -576,8 +521,6 @@ export function useQuickRide({
     [cardsById],
   );
 
-  const clearDutyBlock = useCallback(() => setDutyBlock(null), []);
-
   return {
     loading,
     refreshing,
@@ -591,7 +534,7 @@ export function useQuickRide({
     busy,
     busyReason,
     busyMessage,
-    dutyLocked: onRide || dutyHeld,
+    dutyLocked,
     needsVehicle,
     error,
     refresh,
@@ -602,24 +545,4 @@ export function useQuickRide({
     dropCard,
     clearDutyBlock,
   };
-}
-
-/**
- * The `driver:online` ack reports the requirement that failed in prose. Match
- * on it so the UI can offer the right button instead of echoing a sentence.
- */
-function blockFromAck(message?: string): DutyBlock {
-  if (message === 'no-location') {
-    return { kind: 'location' };
-  }
-  if (message === 'not-connected' || message === 'timeout') {
-    return { kind: 'connection' };
-  }
-  if (message && /kyc/i.test(message)) {
-    return { kind: 'kyc', message };
-  }
-  if (message && /vehicle/i.test(message)) {
-    return { kind: 'vehicle', message };
-  }
-  return { kind: 'unknown', message };
 }

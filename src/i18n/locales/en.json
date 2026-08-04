@@ -119,7 +119,21 @@
       "photos": "Vehicle photos",
       "photoFront": "Front view",
       "photoSide": "Side view",
-      "photoBack": "Back view"
+      "photoBack": "Back view",
+      "import": {
+        "title": "Driven with us before?",
+        "subtitle": "Bring in the vehicle registered on your number and skip the typing. Its photos and RC come across too, when we have them.",
+        "action": "Import old vehicle",
+        "pickTitle": "Choose a vehicle",
+        "pickSubtitle": "We found more than one vehicle on your number.",
+        "noNumber": "Vehicle",
+        "done": "Vehicle details imported. Check them and add the photos.",
+        "doneWithPhotos_one": "Vehicle details and 1 photo imported. Check them, and replace any photo that's out of date.",
+        "doneWithPhotos_other": "Vehicle details and {{count}} photos imported. Check them, and replace any photo that's out of date.",
+        "doneNoType": "Vehicle details imported. Please pick the vehicle type yourself.",
+        "none": "No previous vehicle found on your number.",
+        "failed": "Couldn't fetch your previous vehicle. Please try again."
+      }
     },
     "errors": {
       "fixFields": "Please fix the highlighted fields.",
@@ -197,6 +211,12 @@
     "belowEstimate": "Below the {{amount}} estimate",
     "bidRange": "Bid {{min}}–{{max}}",
     "placeBid": "Place bid",
+    "swipeToBid": "Swipe to bid",
+    "swipeToConfirm": "Swipe to bid {{amount}}",
+    "swipeToLower": "Swipe to lower to {{amount}}",
+    "statToPickup": "To pickup",
+    "statTrip": "Trip",
+    "statTime": "Time",
     "yourBid": "Your bid",
     "bidWaiting": "Waiting · {{seconds}}",
     "bidPending": "Waiting for the rider",
@@ -463,6 +483,16 @@
     "collectHint": "Works with any UPI app",
     "noUpi": "Add a UPI ID in Profile → Manage payment to show a payment QR here."
   },
+  "reviews": {
+    "title": "My reviews",
+    "totalCount_one": "{{count}} rider review",
+    "totalCount_other": "{{count}} rider reviews",
+    "anonymous": "A rider",
+    "emptyTitle": "No reviews yet",
+    "emptyBody": "Ratings riders leave after a ride will show up here.",
+    "errorTitle": "Couldn't load your reviews",
+    "loadFailed": "Couldn't load your reviews."
+  },
   "profile": {
     "title": "Profile",
     "noName": "Driver",
@@ -474,6 +504,8 @@
     "personalInfo": "Personal information",
     "manageVehicle": "Manage vehicle",
     "managePayment": "Manage payment",
+    "myReviews": "My reviews",
+    "ratingValue": "{{rating}} ★",
     "version": "Version {{version}}",
     "sections": {
       "account": "Account",

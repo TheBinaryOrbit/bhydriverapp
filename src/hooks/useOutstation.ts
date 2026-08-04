@@ -42,11 +42,11 @@ import type { LatLng } from '../types/quickRide';
  *    week leaves the driver free to work all week — the block only closes two
  *    hours before departure. So `liveRide` does not imply `busy` here.
  *
- * The duty **switch** is deliberately not owned here — `useQuickRide` owns it,
- * and this hook only reads it so the tab can explain why nothing is being
- * pushed. What this hook does own is keeping duty *pinned* while a trip is
- * `arriving`, because that is the only window a rider can watch this driver
- * and the hook, unlike the trip screen, is alive for as long as the app is.
+ * The duty **switch** is not owned here — `useDuty` owns it for both tabs, so
+ * there is exactly one duty state and the tab renders it. What this hook does
+ * own is keeping duty *pinned* while a trip is `arriving`, because that is the
+ * only window a rider can watch this driver and the hook, unlike the trip
+ * screen, is alive for as long as the app is.
  */
 
 /** A bid the driver is holding on a trip. No expiry — see rule 2. */
@@ -83,8 +83,6 @@ export type OutstationState = {
   needsVehicle: boolean;
   /** No coordinates yet, so the browse list can't be built. */
   needsLocation: boolean;
-  /** Duty, read-only. Offline is fine here — the list still works. */
-  onDuty: boolean;
   departure: DepartureFilter;
   error: string | null;
 
@@ -132,7 +130,6 @@ export function useOutstation({
   const [busyMessage, setBusyMessage] = useState<string | null>(null);
   const [needsVehicle, setNeedsVehicle] = useState(false);
   const [needsLocation, setNeedsLocation] = useState(false);
-  const [onDuty, setOnDuty] = useState(driverSocket.isOnDuty);
   const [departure, setDeparture] = useState<DepartureFilter>('all');
   const [error, setError] = useState<string | null>(null);
 
@@ -317,8 +314,6 @@ export function useOutstation({
     driverSocket.connect(token);
 
     const off = [
-      driverSocket.onDutyChange(state => setOnDuty(state.onDuty)),
-
       driverSocket.on('outstation:request', upsertCard),
 
       driverSocket.on('outstation:fare_updated', payload =>
@@ -554,7 +549,6 @@ export function useOutstation({
     busyMessage,
     needsVehicle,
     needsLocation,
-    onDuty,
     departure,
     error,
     refresh,

@@ -18,7 +18,7 @@ import {
   isValidUpiId,
   savePaymentDetails,
 } from '../../services/paymentService';
-import { getToken } from '../../storage/authStorage';
+import { cacheUpiId, getToken } from '../../storage/authStorage';
 import { colors } from '../../theme/colors';
 import { notify } from '../../utils/notify';
 
@@ -50,6 +50,11 @@ export default function ManagePaymentScreen({ navigation }: Props) {
       const details = await fetchMyPaymentDetails(token);
       setSaved(details?.upiId ?? null);
       setUpiId(details?.upiId ?? '');
+      // Keep the home screen's cache honest — this screen is the one place the
+      // id can change, and it is also the freshest read of it we ever get.
+      if (details?.upiId) {
+        await cacheUpiId(details.upiId);
+      }
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         await signOut();
@@ -86,6 +91,7 @@ export default function ManagePaymentScreen({ navigation }: Props) {
     setSaving(true);
     try {
       const details = await savePaymentDetails(token, trimmed);
+      await cacheUpiId(details.upiId);
       setSaved(details.upiId);
       notify(t('payment.saved'));
       navigation.goBack();

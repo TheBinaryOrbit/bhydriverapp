@@ -27,6 +27,7 @@ import {
   getCachedContentList,
 } from '../services/contentService';
 import { fetchMyPaymentDetails } from '../services/paymentService';
+import { fetchDriverReviews } from '../services/reviewService';
 import { fetchMyVehicles } from '../services/vehicleService';
 import { colors, navyGradient } from '../theme/colors';
 import type { AppContentSummary } from '../types/driver';
@@ -47,10 +48,12 @@ export default function ProfileScreen() {
   const signOut = useSignOut();
 
   const { token, driver, loading, reload } = useAuth();
+  const driverId = driver?._id;
 
   const [pages, setPages] = useState<AppContentSummary[]>([]);
   const [vehicleNumber, setVehicleNumber] = useState<string | null>(null);
   const [upiId, setUpiId] = useState<string | null>(null);
+  const [rating, setRating] = useState<number | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   // Support pages are public — render the cached menu, then refresh it.
@@ -84,7 +87,18 @@ export default function ProfileScreen() {
     } catch {
       setUpiId(null);
     }
-  }, [token]);
+    // Only the summary is wanted here — one row asks for a page of reviews and
+    // reads the average off the header, which is cheaper than a second endpoint
+    // that doesn't exist.
+    if (driverId) {
+      try {
+        const page = await fetchDriverReviews(token, driverId, { limit: 1 });
+        setRating(page.driver?.averageRating ?? null);
+      } catch {
+        setRating(null);
+      }
+    }
+  }, [driverId, token]);
 
   useEffect(() => {
     loadPages();
@@ -130,6 +144,17 @@ export default function ProfileScreen() {
       icon: 'account-balance-wallet',
       value: upiId ?? t('profile.notAdded'),
       onPress: () => navigation.navigate('ManagePayment'),
+    },
+    {
+      key: 'reviews',
+      label: t('profile.myReviews'),
+      icon: 'star-outline',
+      // The rating is the whole reason to open this row, so it goes on the row.
+      value:
+        typeof rating === 'number'
+          ? t('profile.ratingValue', { rating: rating.toFixed(1) })
+          : undefined,
+      onPress: () => navigation.navigate('MyReviews'),
     },
   ];
 

@@ -13,6 +13,7 @@ const KEYS = {
   phone: '@bhy/phone',
   userType: '@bhy/userType',
   driver: '@bhy/driver',
+  upiId: '@bhy/upiId',
 } as const;
 
 export async function saveSession(params: {
@@ -40,6 +41,24 @@ export async function cacheDriver(driver: Driver): Promise<void> {
 
 export async function savePhone(phone: string): Promise<void> {
   await AsyncStorage.setItem(KEYS.phone, phone);
+}
+
+/**
+ * The driver's UPI id, cached so the home screen doesn't call
+ * `/payment-details/me` on every launch to ask a question whose answer only
+ * changes when the driver themselves changes it.
+ *
+ * It lives with the session on purpose: `clearSession` wipes every key in here,
+ * so signing out can't leave one driver's payout id sitting on a shared phone.
+ */
+export async function cacheUpiId(upiId: string): Promise<void> {
+  await AsyncStorage.setItem(KEYS.upiId, upiId);
+}
+
+export async function getCachedUpiId(): Promise<string | null> {
+  const cached = await AsyncStorage.getItem(KEYS.upiId);
+  // An empty string is "no id", not a cache hit — see `useUpiId`.
+  return cached?.trim() ? cached : null;
 }
 
 export async function getToken(): Promise<string | null> {

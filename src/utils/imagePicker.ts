@@ -102,7 +102,11 @@ function handle(
 }
 
 function guessType(asset: Asset): string {
-  const extension = asset.fileName?.split('.').pop()?.toLowerCase();
+  return typeFromName(asset.fileName);
+}
+
+function typeFromName(fileName?: string | null): string {
+  const extension = fileName?.split('.').pop()?.toLowerCase();
   switch (extension) {
     case 'png':
       return 'image/png';
@@ -111,4 +115,17 @@ function guessType(asset: Asset): string {
     default:
       return 'image/jpeg';
   }
+}
+
+/**
+ * An image already hosted somewhere as an upload-ready `PickedImage`, so a file
+ * the driver never picked can still be forwarded to the backend.
+ *
+ * React Native fetches `http(s)` multipart part URIs itself — Android streams
+ * them through `RequestBodyUtil`, iOS through `RCTNetworking`'s HTTP handler —
+ * so the remote file goes up as a normal part with no download step here.
+ */
+export function remoteImage(url: string): PickedImage {
+  const name = url.split('?')[0].split('/').pop() || `import-${Date.now()}.jpg`;
+  return { uri: url, name, type: typeFromName(name) };
 }

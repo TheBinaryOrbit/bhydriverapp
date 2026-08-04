@@ -18,14 +18,19 @@ import OutstationRequestCard from '../../components/outstation/OutstationRequest
 import { departureLabel, leadTime } from '../../components/outstation/format';
 import { CARD_SHADOW } from '../../components/profile/MenuSection';
 import BidSheet from '../../components/quickride/BidSheet';
-import { DutyBlockNote } from '../../components/quickride/DutyPanel';
-import { useDriverLocation } from '../../hooks/useDriverLocation';
+import DutyPanel, {
+  DutyBlockNote,
+} from '../../components/quickride/DutyPanel';
+import {
+  lastKnownFix,
+  useDriverLocation,
+} from '../../hooks/useDriverLocation';
+import { useDuty } from '../../hooks/useDuty';
 import {
   useOutstation,
   type DepartureFilter,
 } from '../../hooks/useOutstation';
 import type { RootStackParamList } from '../../navigation/types';
-import { driverSocket } from '../../services/driverSocket';
 import { colors } from '../../theme/colors';
 import type { OutstationCard, OutstationRide } from '../../types/outstation';
 import type { LatLng } from '../../types/quickRide';
@@ -37,12 +42,6 @@ type Props = { token: string | null };
 
 const FILTERS: DepartureFilter[] = ['all', 'now', 'later'];
 
-/** The most recent fix the shared location watcher pushed into the socket. */
-function lastKnownFix(): LatLng | null {
-  const at = driverSocket.position;
-  return at ? { lat: at.latitude, lng: at.longitude } : null;
-}
-
 /**
  * Outstation — the long-distance half of the home screen.
  *
@@ -52,8 +51,10 @@ function lastKnownFix(): LatLng | null {
  * offline driver still sees everything — they are told only that new trips
  * won't be pushed, which is the sole thing being offline costs them here.
  *
- * There is no duty switch: QuickRide's panel owns the one on the home screen,
- * and duplicating it would give the driver two switches over one socket.
+ * The duty switch is the *same* switch as QuickRide's, not a second one: duty
+ * lives on `driverSocket` and every change is broadcast, so `useDuty` here and
+ * `useDuty` there read one state and move it together. A driver who opens this
+ * tab offline should not have to go and find another screen to fix that.
  */
 export default function OutstationTab({ token }: Props) {
   const { t } = useTranslation();
@@ -120,7 +121,6 @@ export default function OutstationTab({ token }: Props) {
     busyMessage,
     needsVehicle,
     needsLocation,
-    onDuty,
     departure,
     error,
     refresh,
@@ -135,6 +135,24 @@ export default function OutstationTab({ token }: Props) {
     requestLocation: request,
     startWatching,
     stopWatching,
+  });
+
+  const {
+    link,
+    onDuty,
+    switching,
+    dutyBlock,
+    dutyLocked,
+    goOnline,
+    goOffline,
+    clearDutyBlock,
+  } = useDuty({
+    requestLocation: request,
+    startWatching,
+    // Going online is the one moment this tab is *sure* it has a fresh fix, and
+    // the browse list is built from one — so this doubles as the retry for a
+    // list that came back empty for want of coordinates.
+    onWentOnline: refresh,
   });
 
   // Coming back from a finished trip, the next one has to be able to open.
@@ -238,6 +256,26 @@ export default function OutstationTab({ token }: Props) {
 
   const header = (
     <View className="pb-2">
+      <DutyPanel
+        onDuty={onDuty}
+        switching={switching}
+        link={link}
+        locked={dutyLocked}
+        onGoOnline={goOnline}
+        onGoOffline={goOffline}
+      />
+
+      {dutyBlock ? (
+        <DutyBlockNote
+          block={dutyBlock}
+          onAction={kind => {
+            clearDutyBlock();
+            navigation.navigate(kind === 'kyc' ? 'Kyc' : 'EditVehicle');
+          }}
+          onRetry={goOnline}
+        />
+      ) : null}
+
       {/* The trip the driver has already committed to. `assigned` deliberately
           does not take over the screen — it can be thirty days out — so this
           banner is the way back into it. */}
@@ -263,7 +301,11 @@ export default function OutstationTab({ token }: Props) {
         />
       ) : null}
 
-      {needsLocation ? (
+      {/* Going on duty means `driver:online` was acked, which it cannot be
+          without a position — so a driver who is online has a location, whatever
+          the last `/live` was built without. Saying otherwise above a switch
+          that says "You're online" reads as a broken app. */}
+      {needsLocation && !onDuty && !dutyBlock ? (
         <DutyBlockNote
           block={{ kind: 'location' }}
           onAction={() => {}}
