@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "437708291004",
+    "firebase_url": "https://bharat-yaatri-6844e-default-rtdb.firebaseio.com",
+    "project_id": "bharat-yaatri-6844e",
+    "storage_bucket": "bharat-yaatri-6844e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:437708291004:android:acf9b3808e722468fe09b9",
+        "android_client_info": {
+          "package_name": "com.xcentic.bhy"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAjHGkAK7s1nsxH1wxDj3UHTwpr6dENAD8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -32,6 +32,10 @@ build/
 local.properties
 *.iml
 *.hprof
+# JVM crash dumps from the Gradle daemon running out of memory. ~350KB each,
+# no value outside the session that produced them.
+hs_err_pid*.log
+replay_pid*.log
 .cxx/
 *.keystore
 !debug.keystore

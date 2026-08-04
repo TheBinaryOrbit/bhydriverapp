@@ -11,6 +11,7 @@ import PrimaryButton from '../components/PrimaryButton';
 import PhoneSection from '../components/login/PhoneSection';
 import OtpSection from '../components/login/OtpSection';
 import { sendOtp, verifyOtp } from '../services/authService';
+import { getFcmToken } from '../services/pushService';
 import { savePhone, saveSession } from '../storage/authStorage';
 import { notify } from '../utils/notify';
 
@@ -92,10 +93,15 @@ export default function LoginScreen({ navigation }: Props) {
     setLoading(true);
     try {
       await savePhone(phone);
+      // `/auth/verify` is the only call that stores the push token, so this is
+      // where it gets refreshed. Best-effort: `undefined` is simply left out of
+      // the body, and the backend keeps the token it already had.
+      const fcmToken = await getFcmToken();
       const result = await verifyOtp({
         phoneNumber: phone,
         sessionId: sessionId.current,
         otp,
+        fcmToken,
       });
 
       if (result.userStatus === 200 && result.token) {

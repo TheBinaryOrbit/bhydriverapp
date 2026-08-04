@@ -13,6 +13,8 @@
     "@googlemaps/react-native-navigation-sdk": "^0.16.3",
     "@react-native-async-storage/async-storage": "^3.1.1",
     "@react-native-community/geolocation": "^3.4.0",
+    "@react-native-firebase/app": "^26.1.0",
+    "@react-native-firebase/messaging": "^26.1.0",
     "@react-native/new-app-screen": "0.86.0",
     "@react-navigation/bottom-tabs": "^7.18.13",
     "@react-navigation/native": "^7.3.13",
