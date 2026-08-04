@@ -1,18 +1,28 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
+  AudioGuidance,
+  CameraPerspective,
   NavigationSessionStatus,
   NavigationView,
   RouteStatus,
   TravelMode,
   useNavigation,
+  type NavigationViewController,
 } from '@googlemaps/react-native-navigation-sdk';
 
 import type { RootStackParamList } from '../../navigation/types';
+import { getNavigationMuted, setNavigationMuted } from '../../storage/navPrefs';
 import { colors } from '../../theme/colors';
 import { notify } from '../../utils/notify';
 
@@ -38,8 +48,10 @@ export default function NavigationScreen({ navigation, route }: Props) {
   // can't route" — both arrive as the same NETWORK_ERROR.
   const [code, setCode] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
+  /** Voice guidance off — the driver's standing choice, not this trip's. */
+  const [muted, setMuted] = useState(false);
 
-  const alive = useRef(true);
+  const viewController = useRef<NavigationViewController | null>(null);
 
   const retry = useCallback(() => {
     setPhase('starting');
@@ -65,7 +77,6 @@ export default function NavigationScreen({ navigation, route }: Props) {
   );
 
   useEffect(() => {
-    alive.current = true;
     let cancelled = false;
 
     const fail = (reason: string, status?: string) => {
@@ -132,7 +143,6 @@ export default function NavigationScreen({ navigation, route }: Props) {
 
     return () => {
       cancelled = true;
-      alive.current = false;
       removeAllListeners();
       navigationController.stopGuidance().catch(() => {});
       navigationController.cleanup().catch(() => {});
@@ -146,15 +156,69 @@ export default function NavigationScreen({ navigation, route }: Props) {
     t,
   ]);
 
+  /**
+   * Turn the navigation UI on once guidance is running.
+   *
+   * This is what was missing: `navigationUIEnabledPreference` defaults to
+   * AUTOMATIC, which enables the maneuver card, the trip-progress footer and
+   * the speed limit **only if a session was already running when the view
+   * initialised**. Ours never is — the view mounts first and the session starts
+   * a second or two later, off the async chain above — so the SDK left its own
+   * UI switched off and the map came up as a bare map with no instructions on
+   * it. Enabling it explicitly, from whichever of the two lands last, is the
+   * fix.
+   */
+  const showNavigationUi = useCallback(() => {
+    const view = viewController.current;
+    if (!view || phase !== 'guiding') {
+      return;
+    }
+    view.setNavigationUIEnabled(true).catch(() => {});
+    // Follow the car, tilted, the way a driver expects guidance to sit.
+    view.setFollowingPerspective(CameraPerspective.TILTED).catch(() => {});
+  }, [phase]);
+
   useEffect(() => {
-    setOnArrival(() => {
-      notify(t('navigate.arrived'));
-      if (alive.current) {
-        navigation.goBack();
-      }
+    showNavigationUi();
+  }, [showNavigationUi]);
+
+  /** The driver's saved choice, read once and applied as guidance starts. */
+  useEffect(() => {
+    getNavigationMuted().then(setMuted);
+  }, []);
+
+  useEffect(() => {
+    if (phase !== 'guiding') {
+      return;
+    }
+    navigationController.setAudioGuidanceType(
+      muted ? AudioGuidance.SILENT : AudioGuidance.VOICE_ALERTS_AND_GUIDANCE,
+    );
+  }, [muted, navigationController, phase]);
+
+  const toggleSound = useCallback(() => {
+    setMuted(previous => {
+      const next = !previous;
+      // Nothing waits on the write: the toggle has already flipped, and a
+      // failed save costs the driver one tap next time.
+      setNavigationMuted(next).catch(() => {});
+      return next;
     });
+  }, []);
+
+  /**
+   * Arriving is announced, not acted on.
+   *
+   * The screen used to close itself here. It shouldn't: the SDK calls this from
+   * a geofence around the destination, which trips while the driver is still
+   * circling for the rider or the building — and closing the map out from under
+   * them at exactly that moment is when they most need it. Leaving is the
+   * driver's call, on the Close button that is already there.
+   */
+  useEffect(() => {
+    setOnArrival(() => notify(t('navigate.arrived')));
     return () => setOnArrival(null);
-  }, [navigation, setOnArrival, t]);
+  }, [setOnArrival, t]);
 
   return (
     <View className="flex-1 bg-black">
@@ -163,27 +227,66 @@ export default function NavigationScreen({ navigation, route }: Props) {
           trip-progress bar underneath the system navigation bar. The SDK
           exposes no padding prop, so the whole view is inset instead. */}
       <SafeAreaView className="flex-1" edges={['top', 'bottom']}>
-        <NavigationView style={{ flex: 1 }} />
+        {/* Breathing room top and bottom: the SDK draws its maneuver card hard
+            against the top of its view and the trip-progress bar hard against
+            the bottom, and both read as clipped when they sit flush with the
+            status bar and the gesture bar. */}
+        <View style={styles.stage}>
+          <NavigationView
+            style={styles.map}
+            onNavigationViewControllerCreated={next => {
+              viewController.current = next;
+              showNavigationUi();
+            }}
+            // The SDK's own furniture, asked for by name rather than left to
+            // defaults: the instruction card, the trip-progress footer, the
+            // speed limit and the recenter button are the whole reason a driver
+            // is looking at this screen instead of the ride card.
+            headerEnabled
+            footerEnabled
+            tripProgressBarEnabled
+            speedLimitIconEnabled
+            recenterButtonEnabled
+          />
 
-        {/* Laid out below the map rather than floating over it: the SDK owns
-            both the top of its view (maneuver card) and the bottom
-            (trip-progress bar), so anything overlaid covers what the driver is
-            reading. Only while guidance is up — every other phase sits behind
-            the overlay below, which carries its own way out. */}
-        {phase === 'guiding' ? (
-          <View className="bg-white px-5 py-3">
-            <Pressable
-              onPress={() => navigation.goBack()}
-              className="flex-row items-center justify-center rounded-xl py-3.5 active:opacity-80"
-              style={{ backgroundColor: colors.secondary }}
-            >
-              <MaterialIcons name="close" size={18} color="#ffffff" />
-              <Text className="ml-2 text-sm font-bold text-white">
-                {t('navigate.close')}
-              </Text>
-            </Pressable>
-          </View>
-        ) : null}
+          {/* Corner buttons rather than a bar under the map: the map is what
+              the driver is reading, and a full-width row below it cost the map
+              the height instead. Inset to clear the right-hand end of the
+              maneuver card. Only while guidance is up — every other phase sits
+              behind the overlay below, which carries its own way out. */}
+          {phase === 'guiding' ? (
+            <View style={styles.controls}>
+              <Pressable
+                onPress={toggleSound}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityState={{ selected: !muted }}
+                accessibilityLabel={
+                  muted ? t('navigate.soundOff') : t('navigate.soundOn')
+                }
+                style={styles.control}
+                className="active:opacity-80"
+              >
+                <MaterialIcons
+                  name={muted ? 'volume-off' : 'volume-up'}
+                  size={21}
+                  color={muted ? colors.muted : colors.secondary}
+                />
+              </Pressable>
+
+              <Pressable
+                onPress={() => navigation.goBack()}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel={t('navigate.close')}
+                style={styles.control}
+                className="active:opacity-80"
+              >
+                <MaterialIcons name="close" size={22} color={colors.secondary} />
+              </Pressable>
+            </View>
+          ) : null}
+        </View>
       </SafeAreaView>
 
       {/* Covers the map until guidance is actually live — a half-drawn map with
@@ -263,6 +366,43 @@ export default function NavigationScreen({ navigation, route }: Props) {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  /** The map, held off the status bar and the gesture bar. */
+  stage: {
+    flex: 1,
+    paddingTop: 10,
+    paddingBottom: 14,
+  },
+  map: {
+    flex: 1,
+  },
+  /** Sound and close, over the map's top-right corner. */
+  controls: {
+    position: 'absolute',
+    top: 22,
+    right: 14,
+    flexDirection: 'row',
+    gap: 10,
+  },
+  /**
+   * White on a shadow because it lands on whatever the map is showing — road,
+   * water or a dark satellite tile — and a flat icon disappears into all three.
+   */
+  control: {
+    height: 40,
+    width: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
+  },
+});
 
 /** Resolves on the first location update, or after 10s either way. */
 function waitForFix(

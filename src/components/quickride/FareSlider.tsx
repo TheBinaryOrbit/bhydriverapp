@@ -29,8 +29,14 @@ type Props = {
  * slider dependency.
  *
  * The gesture works off `dx` from the value captured on touch-down rather than
- * absolute page coordinates, so it stays accurate inside a modal without
- * measuring the track's position on screen.
+ * absolute page coordinates, so it stays accurate wherever the track sits
+ * without measuring its position on screen.
+ *
+ * It lives inside a scrolling list of ride cards, which is what shapes the rest
+ * of the gesture: nothing is committed on touch-down, and the responder is
+ * given up freely until the drag proves horizontal. A driver flicking the list
+ * with a thumb that happens to land on a track scrolls, and their fare is
+ * exactly where they left it.
  */
 export default function FareSlider({
   min,
@@ -46,8 +52,15 @@ export default function FareSlider({
   const startRef = useRef(value);
   const changeRef = useRef(onChange);
   changeRef.current = onChange;
+  const valueRef = useRef(value);
+  valueRef.current = value;
   const rangeRef = useRef({ min, max, step });
   rangeRef.current = { min, max, step };
+
+  /** Where the finger went down, for the tap-to-jump decided on release. */
+  const tapRef = useRef(0);
+  /** The drag has committed to being horizontal, so it is ours to finish. */
+  const dragging = useRef(false);
 
   const clampToStep = (raw: number) => {
     const { min: lo, max: hi, step: grain } = rangeRef.current;
@@ -59,33 +72,62 @@ export default function FareSlider({
     () =>
       PanResponder.create({
         onStartShouldSetPanResponder: () => !disabled,
-        onMoveShouldSetPanResponder: () => !disabled,
+        // Sideways only. A vertical drag belongs to the list under this card.
+        onMoveShouldSetPanResponder: (_event, gesture) =>
+          !disabled && Math.abs(gesture.dx) > Math.abs(gesture.dy),
 
-        // A tap anywhere on the track jumps there; `locationX` is relative to
-        // the track because the track is the responder.
+        // Nothing moves yet: on touch-down we only remember where the finger
+        // landed and what the fare was, so a scroll that starts here costs the
+        // driver nothing.
         onPanResponderGrant: event => {
-          const track = widthRef.current;
-          if (!track) {
-            return;
-          }
-          const { min: lo, max: hi } = rangeRef.current;
-          const ratio = Math.min(
-            Math.max(event.nativeEvent.locationX / track, 0),
-            1,
-          );
-          const next = clampToStep(lo + ratio * (hi - lo));
-          startRef.current = next;
-          changeRef.current(next);
+          startRef.current = valueRef.current;
+          tapRef.current = event.nativeEvent.locationX;
+          dragging.current = false;
         },
+
+        /**
+         * Holding the responder must not cost the list its scroll. Until the
+         * drag proves horizontal, anyone who asks for the gesture can have it;
+         * after that it is refused, so a drag can't be yanked away halfway.
+         */
+        onPanResponderTerminationRequest: () => !dragging.current,
 
         onPanResponderMove: (_event, gesture) => {
           const track = widthRef.current;
           if (!track) {
             return;
           }
+          if (
+            !dragging.current &&
+            Math.abs(gesture.dx) > 4 &&
+            Math.abs(gesture.dx) > Math.abs(gesture.dy)
+          ) {
+            dragging.current = true;
+          }
+          if (!dragging.current) {
+            return;
+          }
           const { min: lo, max: hi } = rangeRef.current;
           const delta = (gesture.dx / track) * (hi - lo);
           changeRef.current(clampToStep(startRef.current + delta));
+        },
+
+        // A tap that never became a drag jumps the fare to where it landed;
+        // `locationX` is relative to the track because the track is the
+        // responder.
+        onPanResponderRelease: () => {
+          const track = widthRef.current;
+          if (dragging.current || !track) {
+            dragging.current = false;
+            return;
+          }
+          const { min: lo, max: hi } = rangeRef.current;
+          const ratio = Math.min(Math.max(tapRef.current / track, 0), 1);
+          changeRef.current(clampToStep(lo + ratio * (hi - lo)));
+        },
+
+        onPanResponderTerminate: () => {
+          dragging.current = false;
         },
       }),
     // `disabled` is the only thing the responder itself branches on; every

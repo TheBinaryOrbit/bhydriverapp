@@ -225,7 +225,6 @@
     "belowEstimate": "Below the {{amount}} estimate",
     "bidRange": "Bid {{min}}–{{max}}",
     "placeBid": "Place bid",
-    "swipeToBid": "Swipe to bid",
     "swipeToConfirm": "Swipe to bid {{amount}}",
     "swipeToLower": "Swipe to lower to {{amount}}",
     "statToPickup": "To pickup",
@@ -244,13 +243,7 @@
     "withdrawn": "Bid withdrawn.",
     "withdrawFailed": "Couldn't withdraw your bid.",
 
-    "bidTitle": "Place your bid",
-    "lowerBidTitle": "Lower your bid",
     "yourFare": "Your fare",
-    "offered": "Offered {{amount}}",
-    "lowest": "Lowest",
-    "matchOffer": "Match offer",
-    "highest": "Highest",
     "confirmBid": "Bid {{amount}}",
     "confirmLower": "Lower to {{amount}}",
     "cannotLower": "You've already bid {{amount}}, which is the lowest fare allowed on this ride. A bid can only be lowered, never raised.",
@@ -332,13 +325,12 @@
 
     "bannerAssigned": "This trip is yours. Come back when it's time to set off.",
     "bannerArriving": "You're on the way — the rider can see you moving.",
-    "bannerInProgress": "The rider is on board. Head to the drop-off.",
+    "bannerInProgress": "The rider is on board.",
 
     "departs": "Departs",
     "departsNote": "You can keep taking QuickRides until two hours before this departure. Nothing is shared with the rider until you set off.",
     "route": "Route",
-    "navigateDropMaps": "Navigate in Google Maps",
-    "navigateDropNote": "Google Maps opens in a separate app. Come back here to complete the trip when you arrive.",
+    "navigateDropNote": "The drop opens in Google Maps, a separate app. Come back here to complete the trip when you arrive.",
     "mapsFailed": "Couldn't open Google Maps on this phone.",
 
     "start": "Set off",
@@ -351,8 +343,8 @@
     "otpTitle": "Pickup OTP",
     "otpBody": "Ask the rider for their 4-digit code and enter it once they're in the car.",
     "otpFailed": "Couldn't confirm the pickup. Please try again.",
-    "otpLocked": "Too many incorrect attempts. This trip is locked — please cancel and ask the rider to rebook.",
-    "otpLockedBody": "This trip is locked after too many wrong codes. Cancel it and ask the rider to book again.",
+    "otpLocked": "Too many incorrect attempts. This trip is locked — call the rider, then contact support to sort it out.",
+    "otpLockedBody": "This trip is locked after too many wrong codes. Call the rider to check the code they were given, and contact support if it still won't start.",
     "startFirst": "Set off first, then confirm the pickup.",
 
     "complete": "Complete trip",
@@ -360,12 +352,6 @@
     "completeBody": "Only do this once the rider has reached the drop-off.",
     "completeFailed": "Couldn't complete the trip. Please try again.",
 
-    "cancelTrip": "Cancel trip",
-    "cancelTitle": "Cancel this trip?",
-    "cancelBody": "Tell the rider why. Cancelling a booked trip affects the trips you're offered.",
-    "cancelConfirm": "Cancel trip",
-    "cancelled": "Trip cancelled.",
-    "cancelFailed": "Couldn't cancel the trip.",
     "cancelledByRider": "The rider cancelled this trip.",
 
     "trackingFailed": "We couldn't share your location. The rider can't see you moving — check your connection and that location is on.",
@@ -427,15 +413,14 @@
     "title": "Your ride",
     "titlePickup": "Pick up the rider",
     "titleTrip": "Trip in progress",
-    "phasePickup": "Head to the pickup point",
-    "phaseDrop": "Head to the drop-off",
     "rider": "Rider",
     "riderFallback": "Rider",
     "youEarn": "You earn",
     "pickup": "Pickup",
     "drop": "Drop-off",
-    "navigatePickup": "Navigate to pickup",
-    "navigateDrop": "Navigate to drop",
+    "route": "Route",
+    "goToPickup": "Go to pickup location",
+    "goToDrop": "Go to drop location",
     "noCoordinates": "This ride has no location to navigate to.",
     "callFailed": "Couldn't start the call.",
 
@@ -445,8 +430,8 @@
     "otpIncorrect_one": "Incorrect — {{count}} attempt left.",
     "otpIncorrect_other": "Incorrect — {{count}} attempts left.",
     "otpFailed": "Couldn't start the ride. Please try again.",
-    "otpLocked": "Too many incorrect attempts. This ride is locked — please cancel and ask the rider to rebook.",
-    "otpLockedBody": "This ride is locked after too many wrong codes. Cancel it and ask the rider to book again.",
+    "otpLocked": "Too many incorrect attempts. This ride is locked — call the rider, then contact support to sort it out.",
+    "otpLockedBody": "This ride is locked after too many wrong codes. Call the rider to check the code they were given, and contact support if it still won't start.",
     "startRide": "Start ride",
 
     "completeRide": "Complete ride",
@@ -455,13 +440,7 @@
     "completeConfirm": "Complete",
     "completeFailed": "Couldn't complete the ride. Please try again.",
 
-    "cancelRide": "Cancel ride",
-    "cancelTitle": "Cancel this ride?",
-    "cancelBody": "Tell the rider why. Cancelling too often affects the rides you're offered.",
-    "cancelConfirm": "Cancel ride",
     "cancelDefaultReason": "Cancelled by driver",
-    "cancelled": "Ride cancelled.",
-    "cancelFailed": "Couldn't cancel the ride.",
     "cancelledByRider": "The rider cancelled this ride.",
 
     "destination": "Destination",
@@ -470,7 +449,7 @@
   "navigate": {
     "starting": "Starting navigation…",
     "routing": "Finding the best route…",
-    "arrived": "You've arrived.",
+    "arrived": "You've arrived. Close the map when you're done with directions.",
     "failed": "Couldn't start navigation.",
     "noRoute": "No route to this destination.",
     "noFix": "Waiting for a GPS signal. Check that location is on.",
@@ -484,7 +463,9 @@
     "code": "Code: {{code}}",
     "retry": "Try again",
     "back": "Back to the ride",
-    "close": "Close"
+    "close": "Close",
+    "soundOn": "Voice guidance on — tap to mute",
+    "soundOff": "Voice guidance muted — tap to unmute"
   },
   "rideSuccess": {
     "title": "Ride completed",

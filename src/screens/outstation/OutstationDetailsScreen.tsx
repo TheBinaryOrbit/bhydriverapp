@@ -1,9 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
-  Platform,
   Pressable,
   ScrollView,
   Text,
@@ -34,7 +32,6 @@ import type { RootStackParamList } from '../../navigation/types';
 import { ApiError } from '../../services/api';
 import { driverSocket } from '../../services/driverSocket';
 import {
-  cancelOutstationRide,
   completeOutstationRide,
   fetchOutstationRide,
   pickupOutstationRide,
@@ -107,7 +104,6 @@ export default function OutstationDetailsScreen({ navigation, route }: Props) {
   const [starting, setStarting] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [completing, setCompleting] = useState(false);
-  const [cancelling, setCancelling] = useState(false);
   /** `driver:online` failed, so nothing is reaching the rider's map. */
   const [trackingFailed, setTrackingFailed] = useState(false);
 
@@ -274,41 +270,52 @@ export default function OutstationDetailsScreen({ navigation, route }: Props) {
   /**
    * The two legs go to two different navigators, on purpose.
    *
-   * **To the pickup** (`arriving`) stays in-app: it ends in the OTP step, and
-   * a driver sent out to Google Maps arrives with no obvious way back to the
-   * screen that takes the code.
+   * **To the pickup** stays in-app: it ends in the OTP step, and a driver sent
+   * out to Google Maps arrives with no obvious way back to the screen that
+   * takes the code.
    *
-   * **To the drop** (`in_progress`) hands off to Google Maps. Once the rider is
-   * aboard there is no step left to come back for until "Complete trip" at the
-   * far end, and this is a several-hundred-kilometre run — exactly where live
-   * traffic, lane guidance and offline maps matter and where keeping the driver
-   * inside our own SDK buys nothing.
+   * **To the drop** hands off to Google Maps. Once the rider is aboard there is
+   * no step left to come back for until "Complete trip" at the far end, and
+   * this is a several-hundred-kilometre run — exactly where live traffic, lane
+   * guidance and offline maps matter and where keeping the driver inside our
+   * own SDK buys nothing.
+   *
+   * Which leg is the driver's call, not the trip status': checking the run to
+   * the drop days before departure is how a long trip gets planned.
    */
-  const handleNavigate = useCallback(async () => {
-    if (!target) {
-      notify(t('ride.noCoordinates'));
-      return;
-    }
-
-    if (phase === 'drop') {
-      if (!(await openExternalNavigation(target, ride?.dropLocationName))) {
-        notify(t('outstationRide.mapsFailed'));
+  const handleNavigate = useCallback(
+    async (leg: 'pickup' | 'drop') => {
+      const destination = toLatLng(
+        leg === 'pickup' ? ride?.pickupCoordinates : ride?.dropCoordinates,
+      );
+      if (!destination) {
+        notify(t('ride.noCoordinates'));
+        return;
       }
-      return;
-    }
 
-    navigation.navigate('Navigate', {
-      destination: target,
-      title: ride?.pickupLocationName ?? t('ride.destination'),
-    });
-  }, [
-    navigation,
-    phase,
-    ride?.dropLocationName,
-    ride?.pickupLocationName,
-    t,
-    target,
-  ]);
+      if (leg === 'drop') {
+        if (
+          !(await openExternalNavigation(destination, ride?.dropLocationName))
+        ) {
+          notify(t('outstationRide.mapsFailed'));
+        }
+        return;
+      }
+
+      navigation.navigate('Navigate', {
+        destination,
+        title: ride?.pickupLocationName ?? t('ride.destination'),
+      });
+    },
+    [
+      navigation,
+      ride?.dropCoordinates,
+      ride?.dropLocationName,
+      ride?.pickupCoordinates,
+      ride?.pickupLocationName,
+      t,
+    ],
+  );
 
   const handleCall = useCallback(async () => {
     if (!(await callNumber(ride?.bookedBy?.phoneNumber))) {
@@ -432,65 +439,6 @@ export default function OutstationDetailsScreen({ navigation, route }: Props) {
     }
   }, [completing, navigation, patch, ride, rideId, t, token]);
 
-  /**
-   * Cancelling is allowed from `arriving` too — unlike QuickRide.
-   *
-   * That is not an oversight in the contract: a driver locked out by five wrong
-   * OTPs is *already* in `arriving`, and cancelling is the documented way out.
-   */
-  const handleCancel = useCallback(() => {
-    if (!token || cancelling) {
-      return;
-    }
-    // Branch on the platform, never on `Alert.prompt` being defined: it is a
-    // static method on both, and off iOS its whole body is a no-op.
-    if (Platform.OS === 'ios') {
-      Alert.prompt(
-        t('outstationRide.cancelTitle'),
-        t('outstationRide.cancelBody'),
-        [
-          { text: t('common.cancel'), style: 'cancel' },
-          {
-            text: t('outstationRide.cancelConfirm'),
-            style: 'destructive',
-            onPress: (reason?: string) =>
-              runCancel(reason?.trim() || t('ride.cancelDefaultReason')),
-          },
-        ],
-        'plain-text',
-      );
-    } else {
-      Alert.alert(
-        t('outstationRide.cancelTitle'),
-        t('outstationRide.cancelBody'),
-        [
-          { text: t('common.cancel'), style: 'cancel' },
-          {
-            text: t('outstationRide.cancelConfirm'),
-            style: 'destructive',
-            onPress: () => runCancel(t('ride.cancelDefaultReason')),
-          },
-        ],
-      );
-    }
-
-    async function runCancel(reason: string) {
-      setCancelling(true);
-      try {
-        await cancelOutstationRide(token!, rideId, reason);
-        goneRef.current = true;
-        notify(t('outstationRide.cancelled'));
-        navigation.goBack();
-      } catch (err) {
-        notify(
-          err instanceof Error ? err.message : t('outstationRide.cancelFailed'),
-        );
-      } finally {
-        setCancelling(false);
-      }
-    }
-  }, [cancelling, navigation, rideId, t, token]);
-
   /* ------------------------------------------------ render */
 
   if (loading && !ride) {
@@ -610,51 +558,26 @@ export default function OutstationDetailsScreen({ navigation, route }: Props) {
             emphasis={phase}
           />
 
-          {/* Nothing to navigate to while `assigned` — the trip may be days
-              out, and guidance to a pickup you aren't leaving for is noise. */}
-          {status === 'assigned' ? null : (
-            <>
-              <Pressable
-                onPress={handleNavigate}
-                className="mt-4 flex-row items-center justify-center rounded-xl border py-3.5 active:opacity-70"
-                style={{ borderColor: colors.secondary }}
-              >
-                <MaterialIcons
-                  // The drop leg leaves the app, so it says so rather than
-                  // wearing the same icon as the in-app one.
-                  name={phase === 'drop' ? 'open-in-new' : 'navigation'}
-                  size={18}
-                  color={colors.secondary}
-                />
-                <Text className="ml-2 text-sm font-bold text-secondary">
-                  {phase === 'drop'
-                    ? t('outstationRide.navigateDropMaps')
-                    : t('ride.navigatePickup')}
-                </Text>
-              </Pressable>
-
-              {phase === 'drop' ? (
-                <Text className="mt-2.5 text-center text-[11px] leading-4 text-muted">
-                  {t('outstationRide.navigateDropNote')}
-                </Text>
-              ) : null}
-            </>
-          )}
-        </View>
-
-        {/* `in_progress` is the one status with no way back — the rider is in
-            the car and hundreds of kilometres from home. */}
-        {status === 'assigned' || status === 'arriving' ? (
-          <View className="mt-6">
-            <SwipeAction
-              label={t('outstationRide.cancelTrip')}
-              icon="close"
-              tone={colors.danger}
-              loading={cancelling}
-              onConfirm={handleCancel}
+          {/* One button, for the leg being driven — the pickup until the rider
+              is aboard, the drop from then on. */}
+          <View className="mt-4">
+            <NavigateButton
+              label={
+                phase === 'pickup' ? t('ride.goToPickup') : t('ride.goToDrop')
+              }
+              // The drop leg leaves the app, so it says so rather than wearing
+              // the same icon as the in-app one.
+              icon={phase === 'drop' ? 'open-in-new' : 'navigation'}
+              onPress={() => handleNavigate(phase)}
             />
           </View>
-        ) : null}
+
+          {phase === 'drop' ? (
+            <Text className="mt-2.5 text-center text-[11px] leading-4 text-muted">
+              {t('outstationRide.navigateDropNote')}
+            </Text>
+          ) : null}
+        </View>
       </ScrollView>
 
       <View
@@ -692,6 +615,28 @@ export default function OutstationDetailsScreen({ navigation, route }: Props) {
 /* ------------------------------------------------------------------ *
  * Pieces
  * ------------------------------------------------------------------ */
+
+/** Directions to the leg the driver is on. */
+function NavigateButton({
+  label,
+  icon = 'navigation',
+  onPress,
+}: {
+  label: string;
+  icon?: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      className="flex-row items-center justify-center rounded-xl border py-3.5 active:opacity-70"
+      style={{ borderColor: colors.secondary }}
+    >
+      <MaterialIcons name={icon} size={18} color={colors.secondary} />
+      <Text className="ml-2 text-sm font-bold text-secondary">{label}</Text>
+    </Pressable>
+  );
+}
 
 /**
  * Which stage the trip is at — and, for `arriving`, that the rider can see

@@ -216,33 +216,17 @@ export async function completeOutstationRide(
   return { ride: data.ride, paymentDetails: data.paymentDetails ?? undefined };
 }
 
-/**
- * `PATCH /outstation-rides/:id/cancel` — either party, allowed from
- * `searching`, `assigned` **and `arriving`**.
+/*
+ * There is deliberately no `cancelOutstationRide` here.
  *
- * That last one is the difference from QuickRide, and it matters: a driver who
- * has set off but not yet collected the rider is the exact case the OTP lockout
- * leaves stranded, so this is their way out.
+ * `PATCH /outstation-rides/:id/cancel` still exists and the rider still uses it
+ * — `outstation:ride_cancelled` is handled on the trip screen. The driver has
+ * no way to call it: a committed trip is a promise a rider has planned days
+ * around.
+ *
+ * The one case this used to cover was the OTP lockout, where cancelling was the
+ * documented way out. That is now a support case — see `otpLockedBody`.
  */
-export async function cancelOutstationRide(
-  token: string,
-  rideId: string,
-  cancellationReason: string,
-): Promise<OutstationRide> {
-  const res = await fetch(
-    `${apiUrl(API.endpoints.outstationRides)}/${rideId}/cancel`,
-    {
-      method: 'PATCH',
-      headers: jsonHeaders(token),
-      body: JSON.stringify({ cancellationReason }),
-    },
-  );
-  const data = await res.json().catch(() => null);
-  if (!res.ok || !data?.ride) {
-    throw apiError(data, res.status, 'Failed to cancel the trip');
-  }
-  return data.ride;
-}
 
 /**
  * Query filters for `GET /outstation-rides/my`. All optional and combinable.

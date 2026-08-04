@@ -241,8 +241,13 @@ function Leg({
 }
 
 /**
- * Every bundled translation of the reason this app sends when the driver
- * cancels without typing one.
+ * Every bundled translation of the reason this app used to send when a driver
+ * cancelled without typing one.
+ *
+ * Drivers can no longer cancel at all, so nothing writes these any more — but
+ * history is full of rides that were cancelled while they could, and this is
+ * what still reads them back correctly. `ride.cancelDefaultReason` is kept in
+ * the locale files for exactly this.
  *
  * `cancellationReason` is stored as free text in whatever language the app was
  * in at the time, so the driver could have cancelled in Hindi and be reading

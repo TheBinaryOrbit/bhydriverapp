@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useTranslation } from 'react-i18next';
 
 import { CARD_SHADOW } from '../profile/MenuSection';
+import BidControl from './BidControl';
 import RouteLine from './RouteLine';
-import SwipeAction from './SwipeAction';
 import TripStats from './TripStats';
 import { distance, duration, rupees } from './format';
 import { formatCountdown, useCountdown } from '../../hooks/useCountdown';
@@ -17,15 +17,20 @@ type Props = {
   card: RideCard;
   /** The driver's live bid on this ride, if they have one. */
   bid?: PendingBid;
-  onBid: () => void;
+  /** The fare the driver swiped on. */
+  onBid: (fare: number) => void;
   onWithdraw: () => void;
   /** Fired when the card's own `expiresAt` runs out — the card then dies. */
   onExpire: () => void;
+  /** Another card's bid is in flight — nothing here may be swiped meanwhile. */
   busy?: boolean;
+  /** This card's own bid is in flight. */
+  submitting?: boolean;
+  /** Why the last bid on *this* ride was rejected. */
+  error?: string | null;
   /**
    * The driver is holding a live bid on a *different* ride. One bid at a time,
-   * so every way into the bid sheet is shut on this card until that one is
-   * withdrawn or runs out.
+   * so bidding is shut on this card until that one is withdrawn or runs out.
    */
   blocked?: boolean;
 };
@@ -34,6 +39,8 @@ type Props = {
  * One open ride offer — see §2 of `docs/driver-quick-ride.md` for what each
  * number is. The big figure is `offeredFare` (what the rider is offering), not
  * `suggestedFare` (the system's estimate, shown only as a hint).
+ *
+ * The bid is placed on the card: slider, range and swipe, no sheet in between.
  */
 export default function RideRequestCard({
   card,
@@ -42,6 +49,8 @@ export default function RideRequestCard({
   onWithdraw,
   onExpire,
   busy = false,
+  submitting = false,
+  error,
   blocked = false,
 }: Props) {
   const { t } = useTranslation();
@@ -49,9 +58,21 @@ export default function RideRequestCard({
   const remaining = useCountdown(card.expiresAt, onExpire);
   const bidRemaining = useCountdown(bid?.expiresAt);
 
-  const bounds = card.bidBounds;
   const expired = bid?.status === 'expired';
   const away = distance(card.distanceFromDriverKm);
+
+  /**
+   * The driver asked to change a bid they already hold, so the slider is back.
+   * Collapsed by default — a placed bid is usually left alone, and a card that
+   * keeps its slider open is a card that's mostly slider.
+   */
+  const [editing, setEditing] = useState(false);
+
+  // A bid that lands (or lapses) replaces the one being edited — put the
+  // slider away rather than leave it open against stale bounds.
+  useEffect(() => {
+    setEditing(false);
+  }, [bid?.fare, bid?.status]);
 
   // Only worth showing when the rider has actually moved off the estimate.
   const hint =
@@ -122,32 +143,49 @@ export default function RideRequestCard({
         />
       </View>
 
-      {/* {bounds ? (
-        <Text className="mt-3 text-center text-[11px] font-semibold text-muted">
-          {t('quickRide.bidRange', {
-            min: rupees(bounds.min),
-            max: rupees(bounds.max),
-          })}
-        </Text>
-      ) : null} */}
-
       <View className="mt-4 border-t border-border pt-3">
         {bid ? (
-          <BidFooter
-            bid={bid}
-            remaining={bidRemaining}
-            expired={expired}
-            onBid={onBid}
-            onWithdraw={onWithdraw}
-            busy={busy}
-            blocked={blocked}
-          />
+          <>
+            <BidSummary
+              bid={bid}
+              remaining={bidRemaining}
+              expired={expired}
+              onWithdraw={onWithdraw}
+              onEdit={() => setEditing(true)}
+              onCancelEdit={() => setEditing(false)}
+              editing={editing}
+              busy={busy || submitting}
+              blocked={blocked}
+            />
+
+            {editing ? (
+              <View className="mt-4">
+                <BidControl
+                  rideId={card.rideId}
+                  bounds={card.bidBounds}
+                  offeredFare={card.offeredFare}
+                  // An expired bid is gone server-side, so the next one is a
+                  // fresh bid against the full range, not an undercut.
+                  currentBid={expired ? undefined : bid.fare}
+                  submitting={submitting}
+                  error={error}
+                  disabled={busy || blocked}
+                  note={t('quickRide.bidNote')}
+                  onSubmit={onBid}
+                />
+              </View>
+            ) : null}
+          </>
         ) : (
-          <SwipeAction
-            label={t('quickRide.swipeToBid')}
-            onConfirm={onBid}
+          <BidControl
+            rideId={card.rideId}
+            bounds={card.bidBounds}
+            offeredFare={card.offeredFare}
+            submitting={submitting}
+            error={error}
             disabled={busy || blocked}
-            icon="gavel"
+            note={t('quickRide.bidNote')}
+            onSubmit={onBid}
           />
         )}
 
@@ -164,20 +202,24 @@ export default function RideRequestCard({
 }
 
 /** The card once the driver has money on this ride. */
-function BidFooter({
+function BidSummary({
   bid,
   remaining,
   expired,
-  onBid,
   onWithdraw,
+  onEdit,
+  onCancelEdit,
+  editing,
   busy,
   blocked,
 }: {
   bid: PendingBid;
   remaining: number | null;
   expired: boolean;
-  onBid: () => void;
   onWithdraw: () => void;
+  onEdit: () => void;
+  onCancelEdit: () => void;
+  editing: boolean;
   busy: boolean;
   blocked: boolean;
 }) {
@@ -225,7 +267,7 @@ function BidFooter({
 
       <View className="mt-3 flex-row">
         <Pressable
-          onPress={onBid}
+          onPress={editing ? onCancelEdit : onEdit}
           disabled={busy || blocked}
           className={`flex-1 items-center rounded-xl border border-border py-3 ${
             expired ? '' : 'mr-2'
@@ -233,7 +275,11 @@ function BidFooter({
         >
           <Text className="text-sm font-bold text-secondary">
             {/* A bid can only ever be lowered, never walked back up. */}
-            {expired ? t('quickRide.bidAgain') : t('quickRide.lowerBid')}
+            {editing
+              ? t('common.cancel')
+              : expired
+                ? t('quickRide.bidAgain')
+                : t('quickRide.lowerBid')}
           </Text>
         </Pressable>
 

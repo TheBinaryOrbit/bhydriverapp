@@ -157,29 +157,14 @@ export async function completeRide(
   return { ride: data.ride, paymentDetails: data.paymentDetails ?? undefined };
 }
 
-/**
- * `PATCH /quick-rides/:id/cancel` — allowed from `searching` and `assigned`
- * only. Mid-trip is a support case, and the server answers `409`.
+/*
+ * There is deliberately no `cancelRide` here.
+ *
+ * `PATCH /quick-rides/:id/cancel` still exists and the rider still uses it —
+ * `ride:cancelled` is handled on the ride screen. The driver simply has no way
+ * to call it: an accepted ride is a commitment, and a cancel button on this
+ * side of it was one tap from stranding a rider who was already waiting.
  */
-export async function cancelRide(
-  token: string,
-  rideId: string,
-  cancellationReason: string,
-): Promise<QuickRide> {
-  const res = await fetch(
-    `${apiUrl(API.endpoints.quickRides)}/${rideId}/cancel`,
-    {
-      method: 'PATCH',
-      headers: jsonHeaders(token),
-      body: JSON.stringify({ cancellationReason }),
-    },
-  );
-  const data = await res.json().catch(() => null);
-  if (!res.ok || !data?.ride) {
-    throw apiError(data, res.status, 'Failed to cancel the ride');
-  }
-  return data.ride;
-}
 
 /**
  * Query filters for `GET /quick-rides/my`. All optional and combinable.

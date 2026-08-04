@@ -20,7 +20,6 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useTranslation } from 'react-i18next';
 
 import BusyNote from '../../components/outstation/BusyNote';
-import BidSheet from '../../components/quickride/BidSheet';
 import DutyPanel, { DutyBlockNote } from '../../components/quickride/DutyPanel';
 import RideRequestCard from '../../components/quickride/RideRequestCard';
 import SearchingPulse from '../../components/quickride/SearchingPulse';
@@ -29,7 +28,7 @@ import { useDriverLocation } from '../../hooks/useDriverLocation';
 import { useQuickRide } from '../../hooks/useQuickRide';
 import type { RootStackParamList } from '../../navigation/types';
 import { colors } from '../../theme/colors';
-import type { QuickRide, RideCard } from '../../types/quickRide';
+import type { QuickRide } from '../../types/quickRide';
 import { notify } from '../../utils/notify';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -118,22 +117,13 @@ export default function QuickRideTab({ token }: Props) {
 
   /* ------------------------------------------------ bidding */
 
-  const [bidRideId, setBidRideId] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [bidError, setBidError] = useState<string | null>(null);
-
-  // Read from the live list rather than a snapshot, so a fare raise arriving
-  // while the sheet is open re-renders the slider against the new bounds.
-  const bidCard: RideCard | null =
-    cards.find(card => card.rideId === bidRideId) ?? null;
-
-  // The ride was taken or expired under the open sheet.
-  useEffect(() => {
-    if (bidRideId && !bidCard) {
-      setBidRideId(null);
-      setBidError(null);
-    }
-  }, [bidCard, bidRideId]);
+  /** The ride whose bid is in flight — the others grey out while it runs. */
+  const [submittingRideId, setSubmittingRideId] = useState<string | null>(null);
+  /** A rejected bid belongs to the card it was placed from, not the screen. */
+  const [bidError, setBidError] = useState<{
+    rideId: string;
+    message: string;
+  } | null>(null);
 
   /**
    * One live bid at a time. A bid the driver is still waiting on locks every
@@ -147,40 +137,30 @@ export default function QuickRideTab({ token }: Props) {
     [bids],
   );
 
-  const openBidSheet = useCallback(
-    (rideId: string) => {
-      // The cards disable their own buttons; this is the backstop for a tap
+  const placeBid = useCallback(
+    async (rideId: string, fare: number) => {
+      // The cards disable their own swipe; this is the backstop for a gesture
       // that lands between a bid landing and the list re-rendering.
       if (lockedByRideId && lockedByRideId !== rideId) {
         notify(t('quickRide.bidLocked'));
         return;
       }
-      setBidError(null);
-      setBidRideId(rideId);
-    },
-    [lockedByRideId, t],
-  );
-
-  const submitBid = useCallback(
-    async (fare: number) => {
-      if (!bidRideId) {
-        return;
-      }
-      setSubmitting(true);
+      setSubmittingRideId(rideId);
       setBidError(null);
       try {
-        await bid(bidRideId, fare);
-        setBidRideId(null);
+        await bid(rideId, fare);
         notify(t('quickRide.bidPlaced', { amount: fare }));
       } catch (err) {
-        setBidError(
-          err instanceof Error ? err.message : t('quickRide.bidFailed'),
-        );
+        setBidError({
+          rideId,
+          message:
+            err instanceof Error ? err.message : t('quickRide.bidFailed'),
+        });
       } finally {
-        setSubmitting(false);
+        setSubmittingRideId(null);
       }
     },
-    [bid, bidRideId, t],
+    [bid, lockedByRideId, t],
   );
 
   const confirmWithdraw = useCallback(
@@ -325,9 +305,13 @@ export default function QuickRideTab({ token }: Props) {
           <RideRequestCard
             card={item}
             bid={bids[item.rideId]}
-            busy={submitting}
+            busy={submittingRideId !== null && submittingRideId !== item.rideId}
+            submitting={submittingRideId === item.rideId}
+            error={
+              bidError?.rideId === item.rideId ? bidError.message : undefined
+            }
             blocked={!!lockedByRideId && lockedByRideId !== item.rideId}
-            onBid={() => openBidSheet(item.rideId)}
+            onBid={fare => placeBid(item.rideId, fare)}
             onWithdraw={() => confirmWithdraw(item.rideId)}
             onExpire={() => dropCard(item.rideId)}
           />
@@ -335,15 +319,6 @@ export default function QuickRideTab({ token }: Props) {
         ListEmptyComponent={
           busy ? null : <EmptyState onDuty={onDuty} link={link} />
         }
-      />
-
-      <BidSheet
-        card={bidCard}
-        bid={bidRideId ? bids[bidRideId] : undefined}
-        submitting={submitting}
-        error={bidError}
-        onSubmit={submitBid}
-        onClose={() => setBidRideId(null)}
       />
     </View>
   );

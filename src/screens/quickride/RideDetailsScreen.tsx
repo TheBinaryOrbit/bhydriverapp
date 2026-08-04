@@ -1,15 +1,7 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
-  Platform,
   Pressable,
   ScrollView,
   Text,
@@ -38,7 +30,6 @@ import type { RootStackParamList } from '../../navigation/types';
 import { ApiError } from '../../services/api';
 import { driverSocket } from '../../services/driverSocket';
 import {
-  cancelRide,
   completeRide,
   fetchRide,
   startRide,
@@ -86,7 +77,6 @@ export default function RideDetailsScreen({ navigation, route }: Props) {
   const [locked, setLocked] = useState(false);
   const [starting, setStarting] = useState(false);
   const [completing, setCompleting] = useState(false);
-  const [cancelling, setCancelling] = useState(false);
 
   const status: RideStatus = ride?.rideStatus ?? 'assigned';
   const phase = status === 'in_progress' ? 'drop' : 'pickup';
@@ -182,37 +172,38 @@ export default function RideDetailsScreen({ navigation, route }: Props) {
 
   /* ------------------------------------------------ actions */
 
-  const target = useMemo(
-    () =>
-      toLatLng(
-        status === 'assigned' ? ride?.pickupCoordinates : ride?.dropCoordinates,
-      ),
-    [ride?.dropCoordinates, ride?.pickupCoordinates, status],
-  );
-
   // Guidance runs inside the app, on the Navigation SDK. There is no hand-off
   // to the phone's Maps app at all — leaving the app mid-trip is what stops the
   // driver seeing the OTP and complete steps.
-  const handleNavigate = useCallback(() => {
-    if (!target) {
-      notify(t('ride.noCoordinates'));
-      return;
-    }
-    navigation.navigate('Navigate', {
-      destination: target,
-      title:
-        (status === 'assigned'
-          ? ride?.pickupLocationName
-          : ride?.dropLocationName) ?? t('ride.destination'),
-    });
-  }, [
-    navigation,
-    ride?.dropLocationName,
-    ride?.pickupLocationName,
-    status,
-    t,
-    target,
-  ]);
+  //
+  // Which leg is the driver's call, not the ride status': a driver checking the
+  // run to the drop while still at the pickup is planning, not skipping a step.
+  const handleNavigate = useCallback(
+    (leg: 'pickup' | 'drop') => {
+      const destination = toLatLng(
+        leg === 'pickup' ? ride?.pickupCoordinates : ride?.dropCoordinates,
+      );
+      if (!destination) {
+        notify(t('ride.noCoordinates'));
+        return;
+      }
+      navigation.navigate('Navigate', {
+        destination,
+        title:
+          (leg === 'pickup'
+            ? ride?.pickupLocationName
+            : ride?.dropLocationName) ?? t('ride.destination'),
+      });
+    },
+    [
+      navigation,
+      ride?.dropCoordinates,
+      ride?.dropLocationName,
+      ride?.pickupCoordinates,
+      ride?.pickupLocationName,
+      t,
+    ],
+  );
 
   const handleCall = useCallback(async () => {
     if (!(await callNumber(ride?.bookedBy?.phoneNumber))) {
@@ -300,56 +291,6 @@ export default function RideDetailsScreen({ navigation, route }: Props) {
     }
   }, [completing, navigation, patch, ride, rideId, t, token]);
 
-  const handleCancel = useCallback(() => {
-    if (!token || cancelling) {
-      return;
-    }
-    // Branch on the platform, never on `Alert.prompt` being defined: it is a
-    // static method on both, and off iOS its whole body is a no-op — testing
-    // it for truthiness left Android with a button that did nothing at all.
-    if (Platform.OS === 'ios') {
-      Alert.prompt(
-        t('ride.cancelTitle'),
-        t('ride.cancelBody'),
-        [
-          { text: t('common.cancel'), style: 'cancel' },
-          {
-            text: t('ride.cancelConfirm'),
-            style: 'destructive',
-            onPress: (reason?: string) =>
-              runCancel(reason?.trim() || t('ride.cancelDefaultReason')),
-          },
-        ],
-        'plain-text',
-      );
-    } else {
-      // Android has no prompt; the reason is required by the API, so send a
-      // sensible default rather than blocking the driver behind a form.
-      Alert.alert(t('ride.cancelTitle'), t('ride.cancelBody'), [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('ride.cancelConfirm'),
-          style: 'destructive',
-          onPress: () => runCancel(t('ride.cancelDefaultReason')),
-        },
-      ]);
-    }
-
-    async function runCancel(reason: string) {
-      setCancelling(true);
-      try {
-        await cancelRide(token!, rideId, reason);
-        goneRef.current = true;
-        notify(t('ride.cancelled'));
-        navigation.goBack();
-      } catch (err) {
-        notify(err instanceof Error ? err.message : t('ride.cancelFailed'));
-      } finally {
-        setCancelling(false);
-      }
-    }
-  }, [cancelling, navigation, rideId, t, token]);
-
   /* ------------------------------------------------ render */
 
   if (loading && !ride) {
@@ -385,8 +326,6 @@ export default function RideDetailsScreen({ navigation, route }: Props) {
       </View>
     );
   }
-
-  const canCancel = status === 'assigned';
 
   return (
     <KeyboardSafeView>
@@ -430,59 +369,41 @@ export default function RideDetailsScreen({ navigation, route }: Props) {
         {/* Then the rider, and the call button that goes with them. */}
         <RiderCard ride={ride} onCall={handleCall} />
 
-        <PhaseBanner phase={phase} />
-
         <FareCard ride={ride} />
 
-        {/* One destination at a time: the drop address stays hidden until the
-            trip is actually running. */}
+        {/* Both ends, and a way to drive to either, whatever stage the ride is
+            at. The driver plans the whole job from this one card rather than
+            being shown one leg at a time. */}
         <View
           className="mt-4 rounded-2xl border border-border bg-white p-4"
           style={CARD_SHADOW}
         >
           <Text className="mb-3 text-xs font-bold uppercase tracking-wide text-muted">
-            {status === 'assigned' ? t('ride.pickup') : t('ride.drop')}
+            {t('ride.route')}
           </Text>
 
           <RouteLine
             pickup={ride.pickupLocationName}
             drop={ride.dropLocationName}
             emphasis={phase}
-            hideDrop={status === 'assigned'}
           />
 
-          {/* A tap, not a swipe: opening directions is reversible, and it is
+          {/* One button, for the leg being driven — the pickup until the rider
+              is aboard, the drop from then on. Both ends are on the card above
+              to plan from; this is the one the driver is going to now.
+
+              A tap, not a swipe: opening directions is reversible, and it is
               the control the driver reaches for most often — sometimes while
               already moving. Nothing here needs protecting from a stray touch. */}
-          <Pressable
-            onPress={handleNavigate}
-            className="mt-4 flex-row items-center justify-center rounded-xl border py-3.5 active:opacity-70"
-            style={{ borderColor: colors.secondary }}
-          >
-            <MaterialIcons
-              name="navigation"
-              size={18}
-              color={colors.secondary}
-            />
-            <Text className="ml-2 text-sm font-bold text-secondary">
-              {status === 'assigned'
-                ? t('ride.navigatePickup')
-                : t('ride.navigateDrop')}
-            </Text>
-          </Pressable>
-        </View>
-
-        {canCancel ? (
-          <View className="mt-6">
-            <SwipeAction
-              label={t('ride.cancelRide')}
-              icon="close"
-              tone={colors.danger}
-              loading={cancelling}
-              onConfirm={handleCancel}
+          <View className="mt-4">
+            <NavigateButton
+              label={
+                phase === 'pickup' ? t('ride.goToPickup') : t('ride.goToDrop')
+              }
+              onPress={() => handleNavigate(phase)}
             />
           </View>
-        ) : null}
+        </View>
       </ScrollView>
 
       <View
@@ -514,30 +435,23 @@ export default function RideDetailsScreen({ navigation, route }: Props) {
  * Pieces
  * ------------------------------------------------------------------ */
 
-/** Which leg the driver is on, stated plainly at the top of the screen. */
-function PhaseBanner({ phase }: { phase: 'pickup' | 'drop' }) {
-  const { t } = useTranslation();
-  const pickup = phase === 'pickup';
-
+/** Directions to the leg the driver is on. */
+function NavigateButton({
+  label,
+  onPress,
+}: {
+  label: string;
+  onPress: () => void;
+}) {
   return (
-    <View
-      className="mt-4 flex-row items-center rounded-2xl px-4 py-3"
-      style={{
-        backgroundColor: pickup ? colors.warningSurface : colors.successSurface,
-      }}
+    <Pressable
+      onPress={onPress}
+      className="flex-row items-center justify-center rounded-xl border py-3.5 active:opacity-70"
+      style={{ borderColor: colors.secondary }}
     >
-      <MaterialIcons
-        name={pickup ? 'directions-walk' : 'local-taxi'}
-        size={18}
-        color={pickup ? colors.warning : colors.success}
-      />
-      <Text
-        className="ml-2 flex-1 text-[13px] font-bold"
-        style={{ color: pickup ? colors.warning : colors.success }}
-      >
-        {pickup ? t('ride.phasePickup') : t('ride.phaseDrop')}
-      </Text>
-    </View>
+      <MaterialIcons name="navigation" size={18} color={colors.secondary} />
+      <Text className="ml-2 text-sm font-bold text-secondary">{label}</Text>
+    </Pressable>
   );
 }
 

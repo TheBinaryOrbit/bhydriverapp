@@ -17,7 +17,6 @@ import BusyNote from '../../components/outstation/BusyNote';
 import OutstationRequestCard from '../../components/outstation/OutstationRequestCard';
 import { departureLabel, leadTime } from '../../components/outstation/format';
 import { CARD_SHADOW } from '../../components/profile/MenuSection';
-import BidSheet from '../../components/quickride/BidSheet';
 import DutyPanel, {
   DutyBlockNote,
 } from '../../components/quickride/DutyPanel';
@@ -32,7 +31,7 @@ import {
 } from '../../hooks/useOutstation';
 import type { RootStackParamList } from '../../navigation/types';
 import { colors } from '../../theme/colors';
-import type { OutstationCard, OutstationRide } from '../../types/outstation';
+import type { OutstationRide } from '../../types/outstation';
 import type { LatLng } from '../../types/quickRide';
 import { notify } from '../../utils/notify';
 
@@ -178,43 +177,32 @@ export default function OutstationTab({ token }: Props) {
 
   /* ------------------------------------------------ bidding */
 
-  const [bidRideId, setBidRideId] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [bidError, setBidError] = useState<string | null>(null);
+  /** The trip whose bid is in flight — the others grey out while it runs. */
+  const [submittingRideId, setSubmittingRideId] = useState<string | null>(null);
+  /** A rejected bid belongs to the card it was placed from, not the screen. */
+  const [bidError, setBidError] = useState<{
+    rideId: string;
+    message: string;
+  } | null>(null);
 
-  // Read from the live list rather than a snapshot, so a fare raise arriving
-  // while the sheet is open re-renders the slider against the new bounds.
-  const bidCard: OutstationCard | null =
-    cards.find(card => card.rideId === bidRideId) ?? null;
-
-  // The trip was taken or expired under the open sheet.
-  useEffect(() => {
-    if (bidRideId && !bidCard) {
-      setBidRideId(null);
-      setBidError(null);
-    }
-  }, [bidCard, bidRideId]);
-
-  const submitBid = useCallback(
-    async (fare: number) => {
-      if (!bidRideId) {
-        return;
-      }
-      setSubmitting(true);
+  const placeBid = useCallback(
+    async (rideId: string, fare: number) => {
+      setSubmittingRideId(rideId);
       setBidError(null);
       try {
-        await bid(bidRideId, fare);
-        setBidRideId(null);
+        await bid(rideId, fare);
         notify(t('quickRide.bidPlaced', { amount: fare }));
       } catch (err) {
-        setBidError(
-          err instanceof Error ? err.message : t('quickRide.bidFailed'),
-        );
+        setBidError({
+          rideId,
+          message:
+            err instanceof Error ? err.message : t('quickRide.bidFailed'),
+        });
       } finally {
-        setSubmitting(false);
+        setSubmittingRideId(null);
       }
     },
-    [bid, bidRideId, t],
+    [bid, t],
   );
 
   const confirmWithdraw = useCallback(
@@ -388,12 +376,13 @@ export default function OutstationTab({ token }: Props) {
           <OutstationRequestCard
             card={item}
             bid={bids[item.rideId]}
-            busy={submitting}
+            busy={submittingRideId !== null && submittingRideId !== item.rideId}
+            submitting={submittingRideId === item.rideId}
+            error={
+              bidError?.rideId === item.rideId ? bidError.message : undefined
+            }
             blocked={busy}
-            onBid={() => {
-              setBidError(null);
-              setBidRideId(item.rideId);
-            }}
+            onBid={fare => placeBid(item.rideId, fare)}
             onWithdraw={() => confirmWithdraw(item.rideId)}
             onExpire={() => dropCard(item.rideId)}
           />
@@ -405,16 +394,6 @@ export default function OutstationTab({ token }: Props) {
             <EmptyState busy={busy} filtered={departure !== 'all'} />
           )
         }
-      />
-
-      <BidSheet
-        card={bidCard}
-        bid={bidRideId ? bids[bidRideId] : undefined}
-        submitting={submitting}
-        error={bidError}
-        note={t('outstation.bidNote')}
-        onSubmit={submitBid}
-        onClose={() => setBidRideId(null)}
       />
     </View>
   );

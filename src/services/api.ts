@@ -89,6 +89,21 @@ export const API = {
    */
   kycRedirectUrls: ['https://bharatyaatri.com'] as string[],
 
+  /**
+   * Key for the **Directions web service**, used only to draw the road route on
+   * the ride screen's preview map.
+   *
+   * Not the same key as the native `MAPS_API_KEY`: that one is restricted to
+   * the Android/iOS app, and Google rejects app-restricted keys on web-service
+   * calls. This needs its own key with the Directions API enabled, and — since
+   * it ships in the JS bundle — an HTTP-referrer or IP restriction plus a tight
+   * quota. Leave it empty and the map draws a straight line instead, which is
+   * what it did before.
+   *
+   * Better still, move the call behind our own API and delete this.
+   */
+  directionsApiKey: '',
+
   /** Role sent to `/auth/verify` — this is the driver app. */
   role: 'driver',
   /** Set to true to run the flow entirely on-device. */

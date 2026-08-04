@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useTranslation } from 'react-i18next';
@@ -13,8 +13,8 @@ import {
   summaryLine,
 } from './format';
 import { CARD_SHADOW } from '../profile/MenuSection';
+import BidControl from '../quickride/BidControl';
 import RouteLine from '../quickride/RouteLine';
-import SwipeAction from '../quickride/SwipeAction';
 import TripStats from '../quickride/TripStats';
 import { formatCountdown, useCountdown } from '../../hooks/useCountdown';
 import type { OutstationPendingBid } from '../../hooks/useOutstation';
@@ -25,11 +25,17 @@ type Props = {
   card: OutstationCard;
   /** The driver's standing bid on this trip, if they have one. */
   bid?: OutstationPendingBid;
-  onBid: () => void;
+  /** The fare the driver swiped on. */
+  onBid: (fare: number) => void;
   onWithdraw: () => void;
   /** Fired when the offer window runs out — the card then dies. */
   onExpire: () => void;
+  /** Another card's bid is in flight — nothing here may be swiped meanwhile. */
   busy?: boolean;
+  /** This card's own bid is in flight. */
+  submitting?: boolean;
+  /** Why the last bid on *this* trip was rejected. */
+  error?: string | null;
   /**
    * The driver can't take outstation work at all right now. Unlike QuickRide
    * this is never "you already bid elsewhere" — standing bids don't block each
@@ -47,6 +53,8 @@ type Props = {
  * and both are answered. The offer's own expiry (`createdAt + 24h`) only
  * becomes a ticking chip in its final hour, where it changes what the driver
  * does; before that it is noise.
+ *
+ * The bid is placed on the card: slider, range and swipe, no sheet in between.
  */
 export default function OutstationRequestCard({
   card,
@@ -55,9 +63,24 @@ export default function OutstationRequestCard({
   onWithdraw,
   onExpire,
   busy = false,
+  submitting = false,
+  error,
   blocked = false,
 }: Props) {
   const { t } = useTranslation();
+
+  /**
+   * The driver asked to change a bid they already hold, so the slider is back.
+   * Collapsed by default — a standing bid can sit for days, and a card that
+   * keeps its slider open is a card that's mostly slider.
+   */
+  const [editing, setEditing] = useState(false);
+
+  // A bid that lands replaces the one being edited — put the slider away
+  // rather than leave it open against stale bounds.
+  useEffect(() => {
+    setEditing(false);
+  }, [bid?.fare]);
 
   // Still armed at any remaining time — the card must die when the offer does,
   // even though the number is only *shown* in the last hour.
@@ -174,19 +197,43 @@ export default function OutstationRequestCard({
 
       <View className="mt-4 border-t border-border pt-3">
         {bid ? (
-          <BidFooter
-            bid={bid}
-            onBid={onBid}
-            onWithdraw={onWithdraw}
-            busy={busy}
-            blocked={blocked}
-          />
+          <>
+            <BidSummary
+              bid={bid}
+              onWithdraw={onWithdraw}
+              onEdit={() => setEditing(true)}
+              onCancelEdit={() => setEditing(false)}
+              editing={editing}
+              busy={busy || submitting}
+              blocked={blocked}
+            />
+
+            {editing ? (
+              <View className="mt-4">
+                <BidControl
+                  rideId={card.rideId}
+                  bounds={card.bidBounds}
+                  offeredFare={card.offeredFare}
+                  currentBid={bid.fare}
+                  submitting={submitting}
+                  error={error}
+                  disabled={busy || blocked}
+                  note={t('outstation.bidNote')}
+                  onSubmit={onBid}
+                />
+              </View>
+            ) : null}
+          </>
         ) : (
-          <SwipeAction
-            label={t('quickRide.swipeToBid')}
-            onConfirm={onBid}
+          <BidControl
+            rideId={card.rideId}
+            bounds={card.bidBounds}
+            offeredFare={card.offeredFare}
+            submitting={submitting}
+            error={error}
             disabled={busy || blocked}
-            icon="gavel"
+            note={t('outstation.bidNote')}
+            onSubmit={onBid}
           />
         )}
       </View>
@@ -202,16 +249,20 @@ export default function OutstationRequestCard({
  * indefinitely — possibly for days, on a trip booked weeks out. Saying so is
  * what stops the driver assuming it quietly lapsed.
  */
-function BidFooter({
+function BidSummary({
   bid,
-  onBid,
   onWithdraw,
+  onEdit,
+  onCancelEdit,
+  editing,
   busy,
   blocked,
 }: {
   bid: OutstationPendingBid;
-  onBid: () => void;
   onWithdraw: () => void;
+  onEdit: () => void;
+  onCancelEdit: () => void;
+  editing: boolean;
   busy: boolean;
   blocked: boolean;
 }) {
@@ -249,7 +300,7 @@ function BidFooter({
 
       <View className="mt-3 flex-row">
         <Pressable
-          onPress={onBid}
+          onPress={editing ? onCancelEdit : onEdit}
           disabled={busy || blocked}
           className={`mr-2 flex-1 items-center rounded-xl border border-border py-3 ${
             busy || blocked ? 'opacity-50' : 'active:bg-surface'
@@ -257,7 +308,7 @@ function BidFooter({
         >
           <Text className="text-sm font-bold text-secondary">
             {/* A bid can only ever be lowered, never walked back up. */}
-            {t('quickRide.lowerBid')}
+            {editing ? t('common.cancel') : t('quickRide.lowerBid')}
           </Text>
         </Pressable>
 
