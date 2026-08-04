@@ -35,7 +35,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     window = UIWindow(frame: UIScreen.main.bounds)
 
     factory.startReactNative(
-      withModuleName: "bhy",
+      withModuleName: "Bharat Yaatri Partner",
       in: window,
       launchOptions: launchOptions
     )

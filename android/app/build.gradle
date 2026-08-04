@@ -104,9 +104,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace "com.bhy"
+    namespace "com.xcentic.bhy"
     defaultConfig {
-        applicationId "com.bhy"
+        applicationId "com.xcentic.bhy"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
