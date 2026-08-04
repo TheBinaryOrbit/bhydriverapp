@@ -19,14 +19,14 @@ export default function DocumentsStep({ form, errors, onChange }: StepProps) {
       <Text className="text-xl font-bold text-secondary">
         {t('onboarding.documents.title')}
       </Text>
-      <Text className="mt-1.5 text-sm font-medium leading-5 text-muted">
+      {/* <Text className="mt-1.5 text-sm font-medium leading-5 text-muted">
         {t('onboarding.documents.subtitle')}
-      </Text>
+      </Text> */}
 
       <View className="mt-8 gap-4">
-        {verifiedTail ? (
+        {/* {verifiedTail ? (
           <View className="flex-row items-start gap-3">
-            <FormField
+             <FormField
               className="flex-1"
               label={t('onboarding.documents.aadharFirstEight')}
               required
@@ -42,15 +42,15 @@ export default function DocumentsStep({ form, errors, onChange }: StepProps) {
               maxLength={8}
               error={errors.aadharCardNumber}
               hint={t('onboarding.documents.aadharFirstEightHint')}
-            />
-            <FormField
+            /> 
+             <FormField
               className="w-24"
               label={t('onboarding.documents.aadharLastFour')}
               value={verifiedTail}
               locked
               onChangeText={() => {}}
-            />
-          </View>
+            /> 
+           </View>
         ) : (
           <FormField
             label={t('onboarding.documents.aadhar')}
@@ -65,7 +65,7 @@ export default function DocumentsStep({ form, errors, onChange }: StepProps) {
             error={errors.aadharCardNumber}
             hint={t('onboarding.documents.aadharHint')}
           />
-        )}
+        )} */}
 
         <FormField
           label={t('onboarding.documents.dlNumber')}
@@ -75,18 +75,6 @@ export default function DocumentsStep({ form, errors, onChange }: StepProps) {
           placeholder="BR01 20200001234"
           autoCapitalize="characters"
           error={errors.dlNumber}
-        />
-
-        <FormField
-          label={t('onboarding.documents.address')}
-          required
-          value={form.address}
-          onChangeText={text => onChange('address', text)}
-          placeholder={t('onboarding.documents.addressPlaceholder')}
-          multiline
-          numberOfLines={3}
-          style={{ minHeight: 90, textAlignVertical: 'top' }}
-          error={errors.address}
         />
 
         <ImageUpload
@@ -105,6 +93,18 @@ export default function DocumentsStep({ form, errors, onChange }: StepProps) {
           value={form.dlBackImage}
           onChange={image => onChange('dlBackImage', image)}
           error={errors.dlBackImage}
+        />
+
+        <FormField
+          label={t('onboarding.documents.address')}
+          required
+          value={form.address}
+          onChangeText={text => onChange('address', text)}
+          placeholder={t('onboarding.documents.addressPlaceholder')}
+          multiline
+          numberOfLines={3}
+          style={{ minHeight: 90, textAlignVertical: 'top' }}
+          error={errors.address}
         />
       </View>
     </View>

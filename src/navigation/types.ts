@@ -37,6 +37,8 @@ export type RootStackParamList = {
   ManagePayment: undefined;
   /** Ratings riders left. Always the signed-in driver's own — no id needed. */
   MyReviews: undefined;
+  /** The driver's plan. One free plan exists, so it takes no params. */
+  Subscription: undefined;
   /**
    * Aadhaar verification status + the DigiLocker WebView flow.
    *

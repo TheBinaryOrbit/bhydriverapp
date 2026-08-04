@@ -1,6 +1,7 @@
 import type { TFunction } from 'i18next';
 
 import {
+  isFutureExpiry,
   isValidAadhaar,
   isValidDob,
   isValidEmail,
@@ -49,16 +50,7 @@ export function validateStep(
   if (step === 1) {
     // With a KYC-verified Aadhaar the field holds only the first 8 digits, so
     // the full-length rule would never pass — check what was actually typed.
-    const aadhaarEntry = form.aadharCardNumber.trim();
-    if (!aadhaarEntry) {
-      errors.aadharCardNumber = t('onboarding.errors.aadharRequired');
-    } else if (form.aadhaarLast4) {
-      if (!/^\d{8}$/.test(aadhaarEntry)) {
-        errors.aadharCardNumber = t('onboarding.errors.aadharFirstEight');
-      }
-    } else if (!isValidAadhaar(aadhaarEntry)) {
-      errors.aadharCardNumber = t('onboarding.errors.aadhar');
-    }
+  
     if (!form.dlNumber.trim()) {
       errors.dlNumber = t('onboarding.errors.dlNumberRequired');
     } else if (form.dlNumber.trim().length < 6) {
@@ -89,9 +81,6 @@ export function validateStep(
     if (!form.vehicleName.trim()) {
       errors.vehicleName = t('onboarding.errors.vehicleNameRequired');
     }
-    if (!form.ownerName.trim()) {
-      errors.ownerName = t('onboarding.errors.ownerRequired');
-    }
 
     const seats = Number(form.seatingCapacity);
     if (!form.seatingCapacity.trim()) {
@@ -106,16 +95,23 @@ export function validateStep(
       errors.manufactureYear = t('onboarding.errors.year');
     }
 
-    if (!form.insuranceExpiryMonth.trim()) {
-      errors.insuranceExpiryMonth = t('onboarding.errors.monthRequired');
-    } else if (!isValidMonth(form.insuranceExpiryMonth)) {
-      errors.insuranceExpiryMonth = t('onboarding.errors.month');
-    }
-
-    if (!form.insuranceExpiryYear.trim()) {
-      errors.insuranceExpiryYear = t('onboarding.errors.expiryYearRequired');
-    } else if (!isValidExpiryYear(form.insuranceExpiryYear)) {
-      errors.insuranceExpiryYear = t('onboarding.errors.expiryYear');
+    // Insurance expiry is optional — a driver renewing this week doesn't have a
+    // date to give yet. Half of it is still wrong, though: a month with no year
+    // (or the reverse) is a date nobody can read.
+    const month = form.insuranceExpiryMonth.trim();
+    const year = form.insuranceExpiryYear.trim();
+    if (month || year) {
+      if (!month) {
+        errors.insuranceExpiryMonth = t('onboarding.errors.expiryIncomplete');
+      } else if (!year) {
+        errors.insuranceExpiryYear = t('onboarding.errors.expiryIncomplete');
+      } else if (!isValidMonth(month)) {
+        errors.insuranceExpiryMonth = t('onboarding.errors.month');
+      } else if (!isValidExpiryYear(year)) {
+        errors.insuranceExpiryYear = t('onboarding.errors.expiryYear');
+      } else if (!isFutureExpiry(month, year)) {
+        errors.insuranceExpiryMonth = t('onboarding.errors.expiryPast');
+      }
     }
 
     if (!form.vehicleFrontImage) {

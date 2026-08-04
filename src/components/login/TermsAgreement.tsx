@@ -26,7 +26,7 @@ export default function TermsAgreement({
 
   return (
     <View className="flex-row items-start">
-      <Pressable
+      {/* <Pressable
         onPress={onToggle}
         hitSlop={8}
         className="mt-0.5 h-6 w-6 items-center justify-center rounded-md border-[1.5px]"
@@ -38,7 +38,7 @@ export default function TermsAgreement({
         {checked ? (
           <MaterialIcons name="check" size={16} color={colors.primary} />
         ) : null}
-      </Pressable>
+      </Pressable> */}
 
       <Text className="ml-2.5 flex-1 text-[13px] font-medium leading-5 text-muted">
         {t('login.termsPrefix')}{' '}

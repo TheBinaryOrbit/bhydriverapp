@@ -63,10 +63,10 @@ export default function LoginScreen({ navigation }: Props) {
       notify(t('login.invalidPhone'));
       return;
     }
-    if (!agreed) {
-      notify(t('login.agreeToTerms'));
-      return;
-    }
+    // if (!agreed) {
+    //   notify(t('login.agreeToTerms'));
+    //   return;
+    // }
 
     setLoading(true);
     try {

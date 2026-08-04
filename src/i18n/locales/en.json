@@ -3,7 +3,21 @@
     "appName": "Bharat Yaatri",
     "continue": "Continue",
     "cancel": "Cancel",
-    "language": "Language"
+    "language": "Language",
+    "monthsShort": {
+      "1": "Jan",
+      "2": "Feb",
+      "3": "Mar",
+      "4": "Apr",
+      "5": "May",
+      "6": "Jun",
+      "7": "Jul",
+      "8": "Aug",
+      "9": "Sep",
+      "10": "Oct",
+      "11": "Nov",
+      "12": "Dec"
+    }
   },
   "splash": {
     "tagline": "Your journey across Bharat"
@@ -116,13 +130,15 @@
       "insurance": "Insurance expiry",
       "insuranceMonth": "Month",
       "insuranceYear": "Year",
+      "insuranceHint": "Optional — when your policy runs out. Tap a chosen chip again to clear it.",
       "photos": "Vehicle photos",
       "photoFront": "Front view",
       "photoSide": "Side view",
       "photoBack": "Back view",
       "import": {
         "title": "Driven with us before?",
-        "subtitle": "Bring in the vehicle registered on your number and skip the typing. Its photos and RC come across too, when we have them.",
+        "subtitle_one": "We found a vehicle registered on your number. Bring it in and skip the typing — its photos and RC come across too, when we have them.",
+        "subtitle_other": "We found {{count}} vehicles registered on your number. Bring one in and skip the typing — its photos and RC come across too, when we have them.",
         "action": "Import old vehicle",
         "pickTitle": "Choose a vehicle",
         "pickSubtitle": "We found more than one vehicle on your number.",
@@ -130,9 +146,7 @@
         "done": "Vehicle details imported. Check them and add the photos.",
         "doneWithPhotos_one": "Vehicle details and 1 photo imported. Check them, and replace any photo that's out of date.",
         "doneWithPhotos_other": "Vehicle details and {{count}} photos imported. Check them, and replace any photo that's out of date.",
-        "doneNoType": "Vehicle details imported. Please pick the vehicle type yourself.",
-        "none": "No previous vehicle found on your number.",
-        "failed": "Couldn't fetch your previous vehicle. Please try again."
+        "doneNoType": "Vehicle details imported. Please pick the vehicle type yourself."
       }
     },
     "errors": {
@@ -160,10 +174,10 @@
       "seating": "Enter a seating capacity between 1 and 60.",
       "yearRequired": "Manufacture year is required.",
       "year": "Enter a valid manufacture year.",
-      "monthRequired": "Expiry month is required.",
       "month": "Month must be between 1 and 12.",
-      "expiryYearRequired": "Expiry year is required.",
       "expiryYear": "Enter a valid expiry year.",
+      "expiryIncomplete": "Choose both the month and the year.",
+      "expiryPast": "Insurance expiry must be in the future.",
       "vehicleTypesLoad": "Couldn't load vehicle types. Pull to retry.",
       "submit": "Registration failed. Please try again."
     }
@@ -493,6 +507,45 @@
     "errorTitle": "Couldn't load your reviews",
     "loadFailed": "Couldn't load your reviews."
   },
+  "subscription": {
+    "title": "My plan",
+    "planName": "Free plan",
+    "planTagline": "Everything you need to drive, at no cost.",
+    "activeBadge": "Active",
+    "price": "₹0",
+    "priceNote": "for now — nothing to pay",
+    "includedTitle": "What's included",
+    "note": "Your free plan is active on your account and there is nothing to pay today. If that ever changes, we'll tell you in the app well before it does.",
+    "features": {
+      "quickRide": {
+        "title": "Unlimited QuickRide rides",
+        "body": "Take as many live rides as you want — no daily cap, no ride limit."
+      },
+      "outstation": {
+        "title": "Unlimited outstation trips",
+        "body": "Bid on every long-distance trip that comes up, as often as you like."
+      },
+      "alerts": {
+        "title": "Live ride alerts",
+        "body": "Nearby ride requests reach you the moment a rider books."
+      },
+      "payouts": {
+        "title": "Direct UPI payouts",
+        "body": "Riders pay to your UPI id — the fare comes to you, not through us."
+      },
+      "support": {
+        "title": "Help when you need it",
+        "body": "Support and the help pages are open to you at any time."
+      }
+    },
+    "welcome": {
+      "title": "Welcome aboard!",
+      "titleNamed": "Welcome aboard, {{name}}!",
+      "body": "Your free plan is already active on your account — you're ready to start taking rides.",
+      "action": "Start driving",
+      "viewPlan": "See what's included"
+    }
+  },
   "profile": {
     "title": "Profile",
     "noName": "Driver",
@@ -505,9 +558,11 @@
     "manageVehicle": "Manage vehicle",
     "managePayment": "Manage payment",
     "myReviews": "My reviews",
+    "subscription": "My plan",
     "ratingValue": "{{rating}} ★",
     "version": "Version {{version}}",
     "sections": {
+      "plan": "Plan",
       "account": "Account",
       "support": "Support"
     }

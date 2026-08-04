@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useTranslation } from 'react-i18next';
 
+import ExpiryPicker from '../../components/form/ExpiryPicker';
 import FormField from '../../components/form/FormField';
 import ImageUpload from '../../components/form/ImageUpload';
 import OptionSelector from '../../components/form/OptionSelector';
@@ -17,6 +18,7 @@ import {
 } from '../../types/driver';
 import { remoteImage } from '../../utils/imagePicker';
 import { notify } from '../../utils/notify';
+import { isFutureExpiry } from '../../utils/validators';
 import type { OnboardingForm, StepProps } from './types';
 
 type Props = StepProps & {
@@ -44,9 +46,28 @@ export default function VehicleStep({
 }: Props) {
   const { t } = useTranslation();
 
-  const [importing, setImporting] = useState(false);
-  /** Non-null only while the driver is choosing between several old vehicles. */
-  const [choices, setChoices] = useState<LegacyVehicle[] | null>(null);
+  /** What v2 holds for this number — empty until the lookup answers. */
+  const [legacy, setLegacy] = useState<LegacyVehicle[]>([]);
+  /** True only while the driver is choosing between several old vehicles. */
+  const [picking, setPicking] = useState(false);
+
+  // The lookup runs on its own as the driver reaches this step, so nothing is
+  // offered until we know there's something to offer. A failure leaves the list
+  // empty and the card hidden: a driver with nothing to import and one we
+  // couldn't ask about both see the plain form, which is the honest default.
+  useEffect(() => {
+    let cancelled = false;
+    fetchLegacyVehicles(form.phoneNumber)
+      .then(vehicles => {
+        if (!cancelled) {
+          setLegacy(vehicles);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [form.phoneNumber]);
 
   // Selecting a type prefills seating from its `capacity` — still editable,
   // since a specific vehicle can differ from the type's standard.
@@ -64,7 +85,7 @@ export default function VehicleStep({
    * every imported value stays editable — this is a head start, not a lock.
    */
   const applyLegacyVehicle = (vehicle: LegacyVehicle) => {
-    setChoices(null);
+    setPicking(false);
 
     const type = matchVehicleType(vehicleTypes, vehicle.vehicleType);
     if (type) {
@@ -121,28 +142,12 @@ export default function VehicleStep({
     return true;
   };
 
-  const handleImport = async () => {
-    setImporting(true);
-    try {
-      const vehicles = await fetchLegacyVehicles(form.phoneNumber);
-      if (vehicles.length === 0) {
-        notify(t('onboarding.vehicle.import.none'));
-        return;
-      }
-      if (vehicles.length === 1) {
-        applyLegacyVehicle(vehicles[0]);
-        return;
-      }
-      setChoices(vehicles);
-    } catch (error) {
-      notify(
-        error instanceof Error && error.message
-          ? error.message
-          : t('onboarding.vehicle.import.failed'),
-      );
-    } finally {
-      setImporting(false);
+  const handleImport = () => {
+    if (legacy.length === 1) {
+      applyLegacyVehicle(legacy[0]);
+      return;
     }
+    setPicking(true);
   };
 
   return (
@@ -154,48 +159,51 @@ export default function VehicleStep({
         {t('onboarding.vehicle.subtitle')}
       </Text>
 
-      {/* Returning drivers: pull the details off their old v2 registration
-          instead of typing them again. Needs the type list to map v2's type
-          name onto a v3 id, so it waits for that. */}
-      <View className="mt-6 rounded-2xl border border-border bg-surface p-4">
-        <View className="flex-row items-center">
-          <MaterialIcons name="history" size={20} color={colors.tertiary} />
-          <Text className="ml-2 flex-1 text-sm font-bold text-secondary">
-            {t('onboarding.vehicle.import.title')}
+      {/* Returning drivers only: the card appears once the lookup has actually
+          found something on their number, so a new driver never sees an offer
+          that would come back empty. Importing needs the type list to map v2's
+          type name onto a v3 id, so the button waits for that. */}
+      {legacy.length > 0 && (
+        <View className="mt-6 rounded-2xl border border-border bg-surface p-4">
+          <View className="flex-row items-center">
+            <MaterialIcons name="history" size={20} color={colors.tertiary} />
+            <Text className="ml-2 flex-1 text-sm font-bold text-secondary">
+              {t('onboarding.vehicle.import.title')}
+            </Text>
+          </View>
+          <Text className="mt-1.5 text-xs leading-4 text-muted">
+            {t('onboarding.vehicle.import.subtitle', { count: legacy.length })}
           </Text>
+          <Pressable
+            onPress={handleImport}
+            disabled={loadingTypes}
+            className={`mt-3 h-11 flex-row items-center justify-center rounded-xl border border-tertiary active:opacity-80 ${
+              loadingTypes ? 'opacity-60' : ''
+            }`}
+          >
+            {loadingTypes ? (
+              <ActivityIndicator size="small" color={colors.tertiary} />
+            ) : (
+              <>
+                <MaterialIcons
+                  name="download"
+                  size={18}
+                  color={colors.tertiary}
+                />
+                <Text className="ml-1.5 text-sm font-bold text-tertiary">
+                  {t('onboarding.vehicle.import.action')}
+                </Text>
+              </>
+            )}
+          </Pressable>
         </View>
-        <Text className="mt-1.5 text-xs leading-4 text-muted">
-          {t('onboarding.vehicle.import.subtitle')}
-        </Text>
-        <Pressable
-          onPress={handleImport}
-          disabled={importing || loadingTypes}
-          className={`mt-3 h-11 flex-row items-center justify-center rounded-xl border border-tertiary active:opacity-80 ${
-            importing || loadingTypes ? 'opacity-60' : ''
-          }`}
-        >
-          {importing ? (
-            <ActivityIndicator size="small" color={colors.tertiary} />
-          ) : (
-            <>
-              <MaterialIcons
-                name="download"
-                size={18}
-                color={colors.tertiary}
-              />
-              <Text className="ml-1.5 text-sm font-bold text-tertiary">
-                {t('onboarding.vehicle.import.action')}
-              </Text>
-            </>
-          )}
-        </Pressable>
-      </View>
+      )}
 
       <ImportVehicleSheet
-        visible={choices !== null}
-        vehicles={choices ?? []}
+        visible={picking}
+        vehicles={legacy}
         onSelect={applyLegacyVehicle}
-        onClose={() => setChoices(null)}
+        onClose={() => setPicking(false)}
       />
 
       <View className="mt-8 gap-4">
@@ -250,16 +258,6 @@ export default function VehicleStep({
           error={errors.vehicleName}
         />
 
-        <FormField
-          label={t('onboarding.vehicle.owner')}
-          required
-          value={form.ownerName}
-          onChangeText={text => onChange('ownerName', text)}
-          placeholder={t('onboarding.vehicle.ownerPlaceholder')}
-          autoCapitalize="words"
-          hint={t('onboarding.vehicle.ownerHint')}
-          error={errors.ownerName}
-        />
 
         <View className="flex-row gap-3">
           <FormField
@@ -291,35 +289,15 @@ export default function VehicleStep({
           />
         </View>
 
-        <SectionLabel title={t('onboarding.vehicle.insurance')} required />
-        <View className="-mt-2 flex-row gap-3">
-          <FormField
-            className="flex-1"
-            label={t('onboarding.vehicle.insuranceMonth')}
-            required
-            value={form.insuranceExpiryMonth}
-            onChangeText={text =>
-              onChange('insuranceExpiryMonth', text.replace(/[^0-9]/g, ''))
-            }
-            placeholder="06"
-            keyboardType="number-pad"
-            maxLength={2}
-            error={errors.insuranceExpiryMonth}
-          />
-          <FormField
-            className="flex-1"
-            label={t('onboarding.vehicle.insuranceYear')}
-            required
-            value={form.insuranceExpiryYear}
-            onChangeText={text =>
-              onChange('insuranceExpiryYear', text.replace(/[^0-9]/g, ''))
-            }
-            placeholder="2026"
-            keyboardType="number-pad"
-            maxLength={4}
-            error={errors.insuranceExpiryYear}
-          />
-        </View>
+        <ExpiryPicker
+          label={t('onboarding.vehicle.insurance')}
+          month={form.insuranceExpiryMonth}
+          year={form.insuranceExpiryYear}
+          onChangeMonth={value => onChange('insuranceExpiryMonth', value)}
+          onChangeYear={value => onChange('insuranceExpiryYear', value)}
+          hint={t('onboarding.vehicle.insuranceHint')}
+          error={errors.insuranceExpiryMonth ?? errors.insuranceExpiryYear}
+        />
 
         <SectionLabel title={t('onboarding.vehicle.photos')} required />
         <View className="-mt-2 gap-4">
@@ -369,15 +347,17 @@ export default function VehicleStep({
 }
 
 /**
- * The `MM` / `YYYY` the insurance fields expect, from v2's ISO expiry, or
- * `null` when there isn't a usable one.
+ * The month and year the expiry picker expects, from v2's ISO expiry, or `null`
+ * when there isn't a usable one. Both are plain numbers, matching what the
+ * picker stores and the backend reads.
  *
  * Read in local time on purpose: v2 stored these as midnight IST, so an expiry
  * of 31 July arrives as `…-07-30T18:30:00Z` and only reads back as July on the
  * driver's own clock.
  *
- * An expiry in the past is still imported — the driver needs to see the stale
- * date to know it's the thing to update, and validation flags it either way.
+ * A lapsed policy is dropped rather than imported. v2's records are old enough
+ * that most of their expiries are long past, and the picker only offers dates
+ * from next month on — importing one would set a value it can't even show.
  */
 function insuranceExpiry(
   iso?: string,
@@ -389,8 +369,7 @@ function insuranceExpiry(
   if (Number.isNaN(date.getTime())) {
     return null;
   }
-  return {
-    month: String(date.getMonth() + 1).padStart(2, '0'),
-    year: String(date.getFullYear()),
-  };
+  const month = String(date.getMonth() + 1);
+  const year = String(date.getFullYear());
+  return isFutureExpiry(month, year) ? { month, year } : null;
 }

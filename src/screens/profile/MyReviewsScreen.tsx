@@ -2,7 +2,6 @@ import React from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   Pressable,
   RefreshControl,
   Text,
@@ -144,9 +143,13 @@ function SummaryCard({
   );
 }
 
+/**
+ * One review, with the rider left unnamed. A driver reading their ratings has
+ * no use for who left which one, and putting a name on a low score invites
+ * exactly the kind of matching-up we don't want — so the name and the initial
+ * taken from it both stay off, and every card reads the same.
+ */
 function ReviewCard({ review }: { review: DriverReview }) {
-  const author = review.userId;
-  const initial = author?.name?.trim().charAt(0).toUpperCase();
   const when = rideMoment(review.createdAt);
   const comment = review.comment?.trim();
 
@@ -159,19 +162,7 @@ function ReviewCard({ review }: { review: DriverReview }) {
     >
       <View className="flex-row items-center">
         <View className="h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-surface">
-          {author?.profileImageUrl ? (
-            <Image
-              source={{ uri: author.profileImageUrl }}
-              className="h-full w-full"
-              resizeMode="cover"
-            />
-          ) : initial ? (
-            <Text className="text-base font-extrabold text-secondary">
-              {initial}
-            </Text>
-          ) : (
-            <MaterialIcons name="person" size={20} color={colors.muted} />
-          )}
+          <MaterialIcons name="person" size={20} color={colors.muted} />
         </View>
 
         <View className="ml-3 flex-1">
@@ -179,8 +170,7 @@ function ReviewCard({ review }: { review: DriverReview }) {
             className="text-[14px] font-bold text-secondary"
             numberOfLines={1}
           >
-            {/* Riders can be deleted; the review they left stays. */}
-            {author?.name?.trim() || t('reviews.anonymous')}
+            {t('reviews.anonymous')}
           </Text>
           {when ? (
             <Text className="mt-0.5 text-[11px] font-semibold text-muted">

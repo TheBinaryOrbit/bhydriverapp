@@ -103,6 +103,26 @@ export function isValidMonth(value: string): boolean {
   return /^\d{1,2}$/.test(value) && month >= 1 && month <= 12;
 }
 
+/**
+ * The earliest expiry worth offering — **next** month, 1-based. A policy that
+ * runs out this month is spent by the time the driver is on the road, so the
+ * month they're standing in is not a choice.
+ */
+export function earliestExpiry(): { month: number; year: number } {
+  const now = new Date();
+  const month = now.getMonth() + 2;
+  return month > 12
+    ? { month: 1, year: now.getFullYear() + 1 }
+    : { month, year: now.getFullYear() };
+}
+
+/** Whether a `month` / `year` pair is at or after `earliestExpiry()`. */
+export function isFutureExpiry(month: string, year: string): boolean {
+  const first = earliestExpiry();
+  const y = Number(year);
+  return y > first.year || (y === first.year && Number(month) >= first.month);
+}
+
 export function currentYear(): number {
   return new Date().getFullYear();
 }

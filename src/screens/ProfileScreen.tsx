@@ -158,6 +158,19 @@ export default function ProfileScreen() {
     },
   ];
 
+  // Its own section rather than a row among the account ones: the plan is what
+  // the driver is working under, not another record to edit.
+  const planRows: MenuRow[] = [
+    {
+      key: 'subscription',
+      label: t('profile.subscription'),
+      icon: 'workspace-premium',
+      value: t('subscription.planName'),
+      valueTone: 'success',
+      onPress: () => navigation.navigate('Subscription'),
+    },
+  ];
+
   const supportRows: MenuRow[] = pages.map(page => ({
     key: page._id,
     label: page.name,
@@ -284,6 +297,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        <MenuSection title={t('profile.sections.plan')} rows={planRows} />
         <MenuSection title={t('profile.sections.account')} rows={accountRows} />
         <MenuSection title={t('profile.sections.support')} rows={supportRows} />
 

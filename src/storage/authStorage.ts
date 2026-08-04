@@ -14,6 +14,7 @@ const KEYS = {
   userType: '@bhy/userType',
   driver: '@bhy/driver',
   upiId: '@bhy/upiId',
+  welcomed: '@bhy/welcomed',
 } as const;
 
 export async function saveSession(params: {
@@ -59,6 +60,22 @@ export async function getCachedUpiId(): Promise<string | null> {
   const cached = await AsyncStorage.getItem(KEYS.upiId);
   // An empty string is "no id", not a cache hit — see `useUpiId`.
   return cached?.trim() ? cached : null;
+}
+
+/**
+ * The driver who has already been shown the welcome celebration, so it greets a
+ * new sign-in once and never again on the launches that follow.
+ *
+ * The driver's own id rather than a flag: two drivers share a phone often
+ * enough, and the second one signing in has their own welcome coming. Stored
+ * with the session, so `clearSession` clears it — a sign-in is what it marks.
+ */
+export async function markWelcomed(driverId: string): Promise<void> {
+  await AsyncStorage.setItem(KEYS.welcomed, driverId);
+}
+
+export async function getWelcomedDriverId(): Promise<string | null> {
+  return AsyncStorage.getItem(KEYS.welcomed);
 }
 
 export async function getToken(): Promise<string | null> {

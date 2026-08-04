@@ -47,6 +47,7 @@ export default function PersonalStep({
           placeholder={t('onboarding.personal.namePlaceholder')}
           autoCapitalize="words"
           error={errors.name}
+          locked
         />
 
         <FormField

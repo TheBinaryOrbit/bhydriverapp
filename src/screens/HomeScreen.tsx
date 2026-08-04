@@ -1,14 +1,21 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 
 import Screen from '../components/Screen';
 import SegmentedTabs from '../components/SegmentedTabs';
 import UpiPrompt from '../components/home/UpiPrompt';
+import WelcomePrompt from '../components/home/WelcomePrompt';
 import { useAuth } from '../hooks/useAuth';
 import { useUpiId } from '../hooks/useUpiId';
+import { useWelcome } from '../hooks/useWelcome';
+import type { RootStackParamList } from '../navigation/types';
 import OutstationTab from './home/OutstationTab';
 import QuickRideTab from './home/QuickRideTab';
+
+type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 type HomeTab = 'quickRide' | 'outstation';
 
@@ -26,6 +33,7 @@ type HomeTab = 'quickRide' | 'outstation';
 export default function HomeScreen() {
   const { t } = useTranslation();
   const { token, driver } = useAuth();
+  const navigation = useNavigation<Nav>();
 
   const [tab, setTab] = useState<HomeTab>('quickRide');
 
@@ -35,6 +43,9 @@ export default function HomeScreen() {
    * once, and only when the cache and then the API both come back empty.
    */
   const upi = useUpiId(token);
+
+  /** Shown once, on the first home screen of a new sign-in or sign-up. */
+  const welcome = useWelcome(driver?._id);
 
   const firstName = driver?.name?.trim().split(/\s+/)[0];
 
@@ -94,8 +105,21 @@ export default function HomeScreen() {
         </View>
       </View>
 
+      <WelcomePrompt
+        visible={welcome.visible}
+        name={firstName}
+        onClose={welcome.dismiss}
+        onViewPlan={() => {
+          welcome.dismiss();
+          navigation.navigate('Subscription');
+        }}
+      />
+
+      {/* Two sheets can't share the screen, and a brand-new driver is owed
+          both. The greeting goes first — one tap and it's gone — so the UPI
+          ask, which has no way past it, isn't what they're welcomed with. */}
       <UpiPrompt
-        visible={upi.missing}
+        visible={upi.missing && !welcome.visible}
         saving={upi.saving}
         error={upi.error}
         onChange={upi.clearError}
