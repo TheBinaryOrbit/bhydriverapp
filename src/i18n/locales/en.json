@@ -199,6 +199,14 @@
       "outstation": "Outstation"
     }
   },
+  "rideAlert": {
+    "quickRide_one": "New ride request nearby",
+    "quickRide_other": "{{count}} new ride requests nearby",
+    "outstation_one": "New outstation trip available",
+    "outstation_other": "{{count}} new outstation trips available",
+    "view": "View",
+    "dismiss": "Dismiss"
+  },
   "quickRide": {
     "online": "You're online",
     "onlineBody": "Ride requests near you will show up here.",
@@ -362,12 +370,14 @@
 
     "bannerAssigned": "This trip is yours. Come back when it's time to set off.",
     "bannerArriving": "You're on the way — the rider can see you moving.",
-    "bannerInProgress": "The rider is on board.",
+    "bannerInProgress": "The rider is on board — they can still see you moving.",
 
     "departs": "Departs",
     "departsNote": "You can keep taking QuickRides until two hours before this departure. Nothing is shared with the rider until you set off.",
     "route": "Route",
-    "navigateDropNote": "The drop opens in Google Maps, a separate app. Come back here to complete the trip when you arrive.",
+    "navigateMaps": "Google Maps",
+    "navigateInApp": "In the app",
+    "navigateDropNote": "Google Maps is a separate app — come back here to complete the trip when you arrive. Either way the rider keeps seeing you move.",
     "mapsFailed": "Couldn't open Google Maps on this phone.",
 
     "start": "Set off",

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -12,12 +12,16 @@ import { useAuth } from '../hooks/useAuth';
 import { useUpiId } from '../hooks/useUpiId';
 import { useWelcome } from '../hooks/useWelcome';
 import type { RootStackParamList } from '../navigation/types';
+import {
+  currentHomeTab,
+  onHomeTabChange,
+  setHomeTab,
+  type HomeTab,
+} from '../services/homeTab';
 import OutstationTab from './home/OutstationTab';
 import QuickRideTab from './home/QuickRideTab';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
-
-type HomeTab = 'quickRide' | 'outstation';
 
 /**
  * The driver's home. Two products share this screen — QuickRide (live, bid-on
@@ -35,7 +39,14 @@ export default function HomeScreen() {
   const { token, driver } = useAuth();
   const navigation = useNavigation<Nav>();
 
-  const [tab, setTab] = useState<HomeTab>('quickRide');
+  /**
+   * Mirrored from `homeTab`, not owned here — the new-ride snackbar switches
+   * tabs from outside the tree, and it needs to read which one is showing to
+   * know whether to appear at all. Seeded from the store rather than from a
+   * constant so remounting this screen lands on the tab the driver last had.
+   */
+  const [tab, setTab] = useState<HomeTab>(currentHomeTab);
+  useEffect(() => onHomeTabChange(setTab), []);
 
   /**
    * Payouts go to a UPI id, and a driver can work a whole shift without ever
@@ -64,7 +75,9 @@ export default function HomeScreen() {
         <View className="mt-4">
           <SegmentedTabs<HomeTab>
             value={tab}
-            onChange={setTab}
+            // Through the store, so a tap here and a tap on the snackbar are
+            // the same path and cannot disagree.
+            onChange={setHomeTab}
             tabs={[
               {
                 key: 'quickRide',

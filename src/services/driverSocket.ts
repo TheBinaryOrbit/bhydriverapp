@@ -74,12 +74,15 @@ export type DriverSocketEvents = {
   };
   'ride:expired': { rideId: string };
   /**
-   * The tracking room was torn down. `picked_up` is outstation-only and means
-   * the rider is aboard, **not** that the trip is over.
+   * The tracking room was torn down — the same three reasons for both products.
+   *
+   * There is **no `picked_up` teardown**: the outstation room stays up through
+   * the pickup and the whole journey, so `outstation:picked_up` is a label
+   * change on the tracking page, not an end-of-stream.
    */
   'ride:ended': {
     rideId: string;
-    reason?: 'completed' | 'cancelled' | 'expired' | 'picked_up';
+    reason?: 'completed' | 'cancelled' | 'expired';
   };
   /**
    * Reconnected into an active ride. Shared between the products, so this can

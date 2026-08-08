@@ -1,8 +1,13 @@
 import React from 'react';
-import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
+import {
+  NavigationContainer,
+  DefaultTheme,
+  useNavigationContainerRef,
+} from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from './types';
+import NewRideAlert from '../components/NewRideAlert';
 import { colors } from '../theme/colors';
 import SplashScreen from '../screens/SplashScreen';
 import LanguageSelectScreen from '../screens/LanguageSelectScreen';
@@ -33,8 +38,12 @@ const navTheme = {
 };
 
 export default function RootNavigator() {
+  // Held here so the new-ride bar can read the current route and navigate from
+  // outside the navigator — see `NewRideAlert`.
+  const navigationRef = useNavigationContainerRef<RootStackParamList>();
+
   return (
-    <NavigationContainer theme={navTheme}>
+    <NavigationContainer theme={navTheme} ref={navigationRef}>
       <Stack.Navigator
         initialRouteName="Splash"
         screenOptions={{ headerShown: false }}
@@ -82,6 +91,11 @@ export default function RootNavigator() {
           options={{ gestureEnabled: false, animation: 'fade' }}
         />
       </Stack.Navigator>
+
+      {/* A sibling of the navigator, not a screen inside it: a ride can land
+          while the driver is on any of them, so the bar has to sit above the
+          whole stack. It draws nothing until one does. */}
+      <NewRideAlert navigationRef={navigationRef} />
     </NavigationContainer>
   );
 }

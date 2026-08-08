@@ -14,11 +14,19 @@ import type { LatLng } from '../types/quickRide';
 /**
  * Hands a destination to Google Maps for turn-by-turn driving directions.
  *
- * Used for the **outstation drop leg only**. That trip is hundreds of
- * kilometres with the rider already aboard, so the in-app SDK's reason to exist
- * is gone — there is no OTP left to come back for, only "Complete trip" at the
- * far end — and Google Maps is what drivers know, with live traffic, lane
- * guidance and offline maps for the stretches with no signal.
+ * Offered on the **outstation drop leg only**, alongside in-app guidance rather
+ * than instead of it. That leg is hundreds of kilometres with the rider already
+ * aboard, so the in-app SDK's strongest reason to exist is gone — there is no
+ * OTP left to come back for, only "Complete trip" at the far end — and Google
+ * Maps is what most drivers know, with live traffic, lane guidance and offline
+ * maps for the stretches with no signal. The trip screen gives both, because
+ * leaving the app also puts the fare, the rider's number and the Complete swipe
+ * behind another window.
+ *
+ * Handing the leg away is safe because the rider's map does not run off this
+ * app being in front: the 5s `driver:location` ping runs off duty, kept alive
+ * by the foreground duty service, and the outstation room stays up through the
+ * whole drop leg.
  *
  * Three URLs, most specific first:
  *  1. `google.navigation:` — Android only, drops straight into guidance.

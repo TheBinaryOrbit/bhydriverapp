@@ -23,8 +23,9 @@ export type { AnyCoordinates, BidBounds, RideParty };
  * Server-side lifecycle.
  *
  * `arriving` is the one QuickRide has no equivalent for: the driver has said
- * they are setting off but the rider is not aboard yet. It is also the **only**
- * status in which the driver's position is broadcast — see `docs` rule 3.
+ * they are setting off but the rider is not aboard yet. It is also where the
+ * broadcast **begins** — `arriving` and `in_progress` are one unbroken tracking
+ * window, and `assigned` is silent however many days it lasts. See `docs` rule 3.
  */
 export type OutstationRideStatus =
   | 'searching'
@@ -248,10 +249,19 @@ export function outstationPhase(
 }
 
 /**
- * Whether the rider can see this driver move. **Only** `arriving` — see rule 3
- * in the doc: a trip accepted three days early must not broadcast a position
- * for three days, and once the rider is aboard there is nobody left to watch.
+ * Whether the rider — and anyone holding the share link — can see this driver
+ * move. `arriving` **and** `in_progress`: one unbroken window from `/start` to
+ * `/complete`, see rule 3 in the doc.
+ *
+ * `assigned` is the status this excludes, and it is the point of the function: a
+ * trip accepted three days early must not broadcast a position for three days.
+ *
+ * The drop leg is inside the window on purpose. `outstation:picked_up` is a
+ * **label change** on the rider's map — *"the rider is on board"* — not a
+ * teardown, so the family the rider sent the link to can follow a
+ * several-hundred-kilometre run the whole way. That is also why the ping cannot
+ * be stopped at pickup: it is the only thing feeding that map.
  */
 export function isTracking(status?: OutstationRideStatus): boolean {
-  return status === 'arriving';
+  return status === 'arriving' || status === 'in_progress';
 }

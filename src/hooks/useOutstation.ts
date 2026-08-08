@@ -11,6 +11,7 @@ import {
   type OutstationBidError,
 } from '../services/outstationService';
 import {
+  isTracking,
   outstationBidRideId,
   outstationPhase,
   toOutstationCard,
@@ -44,9 +45,9 @@ import type { LatLng } from '../types/quickRide';
  *
  * The duty **switch** is not owned here — `useDuty` owns it for both tabs, so
  * there is exactly one duty state and the tab renders it. What this hook does
- * own is keeping duty *pinned* while a trip is `arriving`, because that is the
- * only window a rider can watch this driver and the hook, unlike the trip
- * screen, is alive for as long as the app is.
+ * own is keeping duty *pinned* from `/start` to `/complete`, because that is the
+ * window a rider can watch this driver and the hook, unlike the trip screen, is
+ * alive for as long as the app is.
  */
 
 /** A bid the driver is holding on a trip. No expiry — see rule 2. */
@@ -374,20 +375,25 @@ export function useOutstation({
   /* ---------------------------------------------- tracking */
 
   /**
-   * `arriving` is the only status a rider can watch, and the only thing feeding
+   * `arriving` **and** `in_progress` are watchable, and the only thing feeding
    * them is the on-duty 5s location ping.
+   *
+   * The drop leg counts. The room is not torn down at pickup — it stays up until
+   * `/complete` — so the rider and whoever they forwarded the link to are
+   * watching for the whole run, which on this product is the several-hundred-
+   * kilometre part. Stopping the ping at pickup is what would freeze it.
    *
    * This lives in the hook rather than on the trip screen because the screen
    * can be backed out of. A driver who set off, then popped back to the tab to
    * look at something, must not silently freeze the map of the rider — and the
    * share link they may have sent to family — for the rest of the drive. It
-   * also covers the cold-start case, where the app relaunches straight into an
-   * `arriving` trip with `isOnDuty` false.
+   * also covers the cold-start case, where the app relaunches straight into a
+   * live trip with `isOnDuty` false.
    *
    * The status is refreshed by `/live` on focus and on foreground, so backing
    * out of the screen is itself what hands the hold over to this effect.
    */
-  const tracking = liveRide?.rideStatus === 'arriving';
+  const tracking = isTracking(liveRide?.rideStatus);
 
   useEffect(() => {
     if (!tracking) {

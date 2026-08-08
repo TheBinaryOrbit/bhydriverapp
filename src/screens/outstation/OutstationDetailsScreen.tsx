@@ -41,6 +41,7 @@ import {
 import { getToken } from '../../storage/authStorage';
 import { colors } from '../../theme/colors';
 import {
+  isTracking,
   outstationPhase,
   type OutstationRide,
   type OutstationRideStatus,
@@ -76,8 +77,10 @@ const DUTY_HOLD = 'outstation-screen';
  * - **`arriving`** — tracking is LIVE. The 5s `driver:location` ping feeds the
  *   rider's map and the link they may have sent to family, so this screen pins
  *   duty on for as long as it is in this state. Navigate to pickup, then OTP.
- * - **`in_progress`** — tracking is OFF again; the room is torn down and the
- *   share link is dead. Navigate to drop, then complete.
+ * - **`in_progress`** — tracking is **still live**. The room is not torn down at
+ *   pickup; `outstation:picked_up` only relabels the rider's map to "on board",
+ *   and the stream runs unbroken until `/complete`. Navigate to drop, then
+ *   complete.
  *
  * The two driver actions are the other split from QuickRide: `/start` says "I
  * am setting off", `/pickup` says "the rider is aboard". QuickRide collapses
@@ -109,7 +112,7 @@ export default function OutstationDetailsScreen({ navigation, route }: Props) {
 
   const status: OutstationRideStatus = ride?.rideStatus ?? 'assigned';
   const phase = outstationPhase(status);
-  const tracking = status === 'arriving';
+  const tracking = isTracking(status);
 
   /* ------------------------------------------------ loading */
 
@@ -153,12 +156,13 @@ export default function OutstationDetailsScreen({ navigation, route }: Props) {
   } = useDriverLocation();
 
   /**
-   * `arriving` is the only status a rider can watch, and the only thing feeding
-   * them is the on-duty location ping. A driver who set off from a cold start —
-   * or who was offline when they tapped Start — would otherwise leave the rider
-   * staring at a car that never moves, with no error anywhere to explain it.
+   * `arriving` and `in_progress` are the statuses a rider can watch, and the
+   * only thing feeding them is the on-duty location ping. A driver who set off
+   * from a cold start — or who was offline when they tapped Start — would
+   * otherwise leave the rider staring at a car that never moves, with no error
+   * anywhere to explain it.
    *
-   * So while this status holds: pin duty (so a tap on the QuickRide tab's Go
+   * So while either status holds: pin duty (so a tap on the QuickRide tab's Go
    * offline can't kill it), run the watcher, and announce if not already on.
    *
    * `useOutstation` runs the same three, and the overlap is deliberate. It only
@@ -195,8 +199,10 @@ export default function OutstationDetailsScreen({ navigation, route }: Props) {
 
     return () => {
       cancelled = true;
-      // Releasing is what lets the driver go offline again once the rider is
-      // aboard — from `in_progress` on, nobody is watching.
+      // Only the *hold* goes, and only for this screen — `useOutstation` keeps
+      // its own for as long as the trip is live, so backing out of here hands
+      // the ping over rather than ending it. Duty itself becomes switchable
+      // again at `/complete`, when the last hold is released.
       driverSocket.releaseDuty(DUTY_HOLD);
       stopWatching();
     };
@@ -268,23 +274,28 @@ export default function OutstationDetailsScreen({ navigation, route }: Props) {
   );
 
   /**
-   * The two legs go to two different navigators, on purpose.
+   * The two legs offer different navigators, on purpose.
    *
-   * **To the pickup** stays in-app: it ends in the OTP step, and a driver sent
-   * out to Google Maps arrives with no obvious way back to the screen that
-   * takes the code.
+   * **To the pickup** stays in-app, and is not a choice: the leg ends in the OTP
+   * step, and a driver sent out to Google Maps arrives with no obvious way back
+   * to the screen that takes the code.
    *
-   * **To the drop** hands off to Google Maps. Once the rider is aboard there is
-   * no step left to come back for until "Complete trip" at the far end, and
-   * this is a several-hundred-kilometre run — exactly where live traffic, lane
-   * guidance and offline maps matter and where keeping the driver inside our
-   * own SDK buys nothing.
+   * **To the drop** offers both, because neither one is right for every driver.
+   * Google Maps is what most of them already use, with live traffic, lane
+   * guidance and offline maps for the stretches of a several-hundred-kilometre
+   * run that have no signal — and there is no step to come back for until
+   * "Complete trip" at the far end. But leaving the app is not free either: the
+   * driver loses the fare, the rider's number and the Complete swipe behind
+   * another app, so in-app guidance stays on offer for the ones who'd rather
+   * keep them.
    *
-   * Which leg is the driver's call, not the trip status': checking the run to
-   * the drop days before departure is how a long trip gets planned.
+   * Neither choice touches the location ping. It runs off duty in the
+   * background service, not off this screen or the SDK, so the rider's map
+   * keeps moving with the app buried behind Google Maps — which is the whole
+   * reason handing the drop leg away is safe.
    */
   const handleNavigate = useCallback(
-    async (leg: 'pickup' | 'drop') => {
+    async (leg: 'pickup' | 'drop', via: 'app' | 'maps' = 'app') => {
       const destination = toLatLng(
         leg === 'pickup' ? ride?.pickupCoordinates : ride?.dropCoordinates,
       );
@@ -292,11 +303,11 @@ export default function OutstationDetailsScreen({ navigation, route }: Props) {
         notify(t('ride.noCoordinates'));
         return;
       }
+      const label =
+        leg === 'pickup' ? ride?.pickupLocationName : ride?.dropLocationName;
 
-      if (leg === 'drop') {
-        if (
-          !(await openExternalNavigation(destination, ride?.dropLocationName))
-        ) {
+      if (via === 'maps') {
+        if (!(await openExternalNavigation(destination, label))) {
           notify(t('outstationRide.mapsFailed'));
         }
         return;
@@ -304,7 +315,7 @@ export default function OutstationDetailsScreen({ navigation, route }: Props) {
 
       navigation.navigate('Navigate', {
         destination,
-        title: ride?.pickupLocationName ?? t('ride.destination'),
+        title: label ?? t('ride.destination'),
       });
     },
     [
@@ -558,19 +569,41 @@ export default function OutstationDetailsScreen({ navigation, route }: Props) {
             emphasis={phase}
           />
 
-          {/* One button, for the leg being driven — the pickup until the rider
-              is aboard, the drop from then on. */}
-          <View className="mt-4">
-            <NavigateButton
-              label={
-                phase === 'pickup' ? t('ride.goToPickup') : t('ride.goToDrop')
-              }
-              // The drop leg leaves the app, so it says so rather than wearing
-              // the same icon as the in-app one.
-              icon={phase === 'drop' ? 'open-in-new' : 'navigation'}
-              onPress={() => handleNavigate(phase)}
-            />
-          </View>
+          {/* Directions to the leg being driven — the pickup until the rider is
+              aboard, the drop from then on.
+
+              The drop offers both navigators side by side rather than behind a
+              menu: it is one tap either way, and a driver who has already
+              decided which they use should not have to open a sheet to say so
+              again at the start of every long run. Google Maps leads because it
+              is the one most will pick; the in-app option carries the plainer
+              icon since it is the one that keeps them here. */}
+          {phase === 'drop' ? (
+            <View className="mt-4 flex-row gap-2.5">
+              <View className="flex-1">
+                <NavigateButton
+                  label={t('outstationRide.navigateMaps')}
+                  icon="open-in-new"
+                  onPress={() => handleNavigate('drop', 'maps')}
+                />
+              </View>
+              <View className="flex-1">
+                <NavigateButton
+                  label={t('outstationRide.navigateInApp')}
+                  icon="navigation"
+                  onPress={() => handleNavigate('drop', 'app')}
+                />
+              </View>
+            </View>
+          ) : (
+            <View className="mt-4">
+              <NavigateButton
+                label={t('ride.goToPickup')}
+                icon="navigation"
+                onPress={() => handleNavigate('pickup')}
+              />
+            </View>
+          )}
 
           {phase === 'drop' ? (
             <Text className="mt-2.5 text-center text-[11px] leading-4 text-muted">
@@ -616,7 +649,13 @@ export default function OutstationDetailsScreen({ navigation, route }: Props) {
  * Pieces
  * ------------------------------------------------------------------ */
 
-/** Directions to the leg the driver is on. */
+/**
+ * Directions to the leg the driver is on.
+ *
+ * Sized to survive being one of a pair: on the drop leg two of these share the
+ * row, so the label is clipped to a line rather than wrapping the button into a
+ * different height than its neighbour.
+ */
 function NavigateButton({
   label,
   icon = 'navigation',
@@ -629,11 +668,18 @@ function NavigateButton({
   return (
     <Pressable
       onPress={onPress}
-      className="flex-row items-center justify-center rounded-xl border py-3.5 active:opacity-70"
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      className="flex-row items-center justify-center rounded-xl border px-2.5 py-3.5 active:opacity-70"
       style={{ borderColor: colors.secondary }}
     >
       <MaterialIcons name={icon} size={18} color={colors.secondary} />
-      <Text className="ml-2 text-sm font-bold text-secondary">{label}</Text>
+      <Text
+        className="ml-1.5 shrink text-sm font-bold text-secondary"
+        numberOfLines={1}
+      >
+        {label}
+      </Text>
     </Pressable>
   );
 }
