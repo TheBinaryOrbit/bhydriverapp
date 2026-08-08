@@ -21,6 +21,7 @@ import { useTranslation } from 'react-i18next';
 
 import BusyNote from '../../components/outstation/BusyNote';
 import DutyPanel, { DutyBlockNote } from '../../components/quickride/DutyPanel';
+import PermissionGateSheet from '../../components/quickride/PermissionGateSheet';
 import RideRequestCard from '../../components/quickride/RideRequestCard';
 import SearchingPulse from '../../components/quickride/SearchingPulse';
 import { CARD_SHADOW } from '../../components/profile/MenuSection';
@@ -83,6 +84,8 @@ export default function QuickRideTab({ token }: Props) {
     busyReason,
     busyMessage,
     dutyLocked,
+    backgroundUnavailable,
+    permissionGate,
     needsVehicle,
     refresh,
     goOnline,
@@ -91,6 +94,9 @@ export default function QuickRideTab({ token }: Props) {
     withdraw,
     dropCard,
     clearDutyBlock,
+    clearBackgroundWarning,
+    dismissPermissionGate,
+    continueAfterPermissions,
   } = quickRide;
 
   // Coming back from a completed ride, the next one has to be able to open.
@@ -99,6 +105,20 @@ export default function QuickRideTab({ token }: Props) {
       handedOver.current = null;
     }
   }, [liveRide]);
+
+  /**
+   * The driver is online, but only for as long as they are looking at this
+   * screen. A toast rather than a banner: the shift is running and the cards
+   * behind it are real, so this is worth saying once and not worth sitting on
+   * top of the list for the rest of the shift.
+   */
+  useEffect(() => {
+    if (!backgroundUnavailable) {
+      return;
+    }
+    notify(t('duty.serviceFailed'));
+    clearBackgroundWarning();
+  }, [backgroundUnavailable, clearBackgroundWarning, t]);
 
   // This tab stays mounted behind the ride screens, so nothing re-runs when the
   // driver comes back from one — pull `/live` again on every focus rather than
@@ -319,6 +339,15 @@ export default function QuickRideTab({ token }: Props) {
         ListEmptyComponent={
           busy ? null : <EmptyState onDuty={onDuty} link={link} />
         }
+      />
+
+      {/* Raised by `goOnline` when a background grant is missing — see
+          `useDuty`. Both home tabs mount their own, and only the one whose
+          switch was tapped has a gate open. */}
+      <PermissionGateSheet
+        visible={permissionGate}
+        onClose={dismissPermissionGate}
+        onContinue={continueAfterPermissions}
       />
     </View>
   );

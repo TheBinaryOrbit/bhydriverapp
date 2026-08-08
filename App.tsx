@@ -7,7 +7,7 @@ import 'react-native-gesture-handler';
 import './global.css';
 import './src/i18n';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { StatusBar } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -17,8 +17,13 @@ import {
 } from '@googlemaps/react-native-navigation-sdk';
 
 import RootNavigator from './src/navigation/RootNavigator';
+import { registerForegroundPushHandler } from './src/services/pushService';
 
 function App() {
+  // Android hands a foreground push to JS and draws nothing itself, so without
+  // a subscriber the message arrives and is discarded unobserved.
+  useEffect(registerForegroundPushHandler, []);
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>

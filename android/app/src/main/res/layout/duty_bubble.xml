@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The on-duty bubble: the logo, a green dot, and nothing else.
+
+  It is deliberately the smallest thing that answers one question — "am I still
+  online?" — for a driver who is in Maps, or who swiped the app away and has no
+  notification shade pulled down. Anything more would be a second app on top of
+  the one the driver is actually using.
+
+  The outer frame is padding only: a view handed to `WindowManager` has no parent
+  to honour margins, and the dot overhangs the disc, so the frame is what keeps
+  both off the screen edge and gives the drag a little slop to start in.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:padding="6dp"
+    android:clipToPadding="false"
+    android:clipChildren="false">
+
+    <ImageView
+        android:id="@+id/duty_bubble_logo"
+        android:layout_width="52dp"
+        android:layout_height="52dp"
+        android:padding="5dp"
+        android:elevation="8dp"
+        android:background="@drawable/duty_bubble_ring"
+        android:src="@mipmap/ic_launcher_round"
+        android:scaleType="fitCenter"
+        android:contentDescription="@string/duty_bubble_description" />
+
+    <View
+        android:id="@+id/duty_bubble_dot"
+        android:layout_width="14dp"
+        android:layout_height="14dp"
+        android:layout_gravity="bottom|end"
+        android:elevation="9dp"
+        android:background="@drawable/duty_bubble_dot" />
+</FrameLayout>

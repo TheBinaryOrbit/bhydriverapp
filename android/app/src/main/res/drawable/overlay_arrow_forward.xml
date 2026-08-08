@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Material's `arrow_forward`, inlined as a vector.
+
+  The app draws this from the `react-native-vector-icons` font, which is a JS
+  dependency and reaches nothing in a window Kotlin inflates — so the one icon
+  the overlay needs is carried here instead of pulling in an icon library for it.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="22dp"
+    android:height="22dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="#ff6b05">
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M4,11v2h12l-5.5,5.5 1.42,1.42L19.84,12l-7.92,-7.92L10.5,5.5 16,11z" />
+</vector>

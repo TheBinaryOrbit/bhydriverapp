@@ -1,0 +1,9 @@
+<resources>
+    <string name="duty_channel_name">ड्यूटी पर</string>
+    <string name="duty_channel_description">आपके ऑनलाइन रहते दिखती है, ताकि फ़ोन आपकी लोकेशन राइडर तक भेजता रहे।</string>
+
+    <string name="duty_interrupted_title">आपकी ड्यूटी रुक गई</string>
+    <string name="duty_interrupted_body">आपके फ़ोन ने ऐप बंद कर दिया। दोबारा ऑनलाइन जाने के लिए टैप करें।</string>
+
+    <string name="duty_bubble_description">भारत यात्री — आप ऑनलाइन हैं। खोलने के लिए टैप करें।</string>
+</resources>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Seconds remaining. Dark rather than red: this is a clock, not an alarm. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#002d4b" />
+    <corners android:radius="999dp" />
+</shape>

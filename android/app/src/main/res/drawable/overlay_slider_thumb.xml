@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The knob, matching `FareSlider`: white with the orange accent as a ring, sized
+  here because a `SeekBar` thumb has no layout to take a size from.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="#ffffff" />
+    <stroke android:width="3dp" android:color="#ff6b05" />
+    <size android:width="28dp" android:height="28dp" />
+</shape>

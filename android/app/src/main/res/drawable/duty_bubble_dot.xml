@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The online dot. The bubble alone says "the app is running"; the dot is what
+  says "you are online" — the same green the duty switch uses in the app, so the
+  two read as one state rather than two features.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="#16a34a" />
+    <stroke android:width="2dp" android:color="#ffffff" />
+</shape>

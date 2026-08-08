@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 
-import { useDuty, type DutyBlock } from './useDuty';
+import { useDuty, type DutyBlock, type GoOnlineOptions } from './useDuty';
 import { ApiError } from '../services/api';
 import { driverSocket, type LinkStatus } from '../services/driverSocket';
 import {
@@ -77,17 +77,27 @@ export type QuickRideState = {
    * is tracking this driver, so the location ping has to keep running.
    */
   dutyLocked: boolean;
+  /**
+   * On duty, but the foreground service would not start — so this shift only
+   * lasts while the app is on screen. A warning, not a block.
+   */
+  backgroundUnavailable: boolean;
+  /** The background-permissions sheet is open — `driver:online` waits on it. */
+  permissionGate: boolean;
   needsVehicle: boolean;
   error: string | null;
 
   refresh: () => Promise<void>;
-  goOnline: () => Promise<void>;
+  goOnline: (options?: GoOnlineOptions) => Promise<void>;
   goOffline: () => void;
   bid: (rideId: string, fare: number) => Promise<void>;
   withdraw: (rideId: string) => Promise<void>;
   /** Called by a card when its own countdown runs out. */
   dropCard: (rideId: string) => void;
   clearDutyBlock: () => void;
+  clearBackgroundWarning: () => void;
+  dismissPermissionGate: () => void;
+  continueAfterPermissions: () => Promise<void>;
 };
 
 type Params = {
@@ -288,7 +298,11 @@ export function useQuickRide({
     driverSocket.connect(token);
 
     const off = [
-      driverSocket.on('ride:request', upsertCard),
+      // The list only. Drawing this over another app belongs to
+      // `services/rideDispatch`, which outlives this hook — a request that
+      // arrives after the driver has swiped the app away has no React tree left
+      // to reach, and that is the case the overlay exists for.
+      driverSocket.on('ride:request', raw => upsertCard(raw)),
 
       // Arrives in two shapes — the full card when you're re-dispatched, the
       // short `{ rideId, offeredFare, bidBounds }` when you already hold a bid.
@@ -370,9 +384,14 @@ export function useQuickRide({
     switching,
     dutyBlock,
     dutyLocked,
+    backgroundUnavailable,
+    permissionGate,
     goOnline,
     goOffline,
     clearDutyBlock,
+    clearBackgroundWarning,
+    dismissPermissionGate,
+    continueAfterPermissions,
   } = useDuty({
     requestLocation,
     startWatching,
@@ -424,7 +443,11 @@ export function useQuickRide({
     // Once per ride — a `goOnline` that fails leaves its own `dutyBlock` with a
     // retry rather than looping on a driver who has no signal.
     resumedForRide.current = true;
-    goOnline();
+    // No permission sheet on this path. The driver is already on a ride, this
+    // tab is sitting behind the details screen, and a modal raised from here
+    // would either be invisible or interrupt a trip in progress to ask a
+    // question that cannot stop the ping from being owed to the rider anyway.
+    goOnline({ prompt: false });
   }, [goOnline, onDuty, onRide, switching]);
 
   /* ---------------------------------------------- bidding */
@@ -535,6 +558,8 @@ export function useQuickRide({
     busyReason,
     busyMessage,
     dutyLocked,
+    backgroundUnavailable,
+    permissionGate,
     needsVehicle,
     error,
     refresh,
@@ -544,5 +569,8 @@ export function useQuickRide({
     withdraw,
     dropCard,
     clearDutyBlock,
+    clearBackgroundWarning,
+    dismissPermissionGate,
+    continueAfterPermissions,
   };
 }

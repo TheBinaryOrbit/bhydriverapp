@@ -13,6 +13,40 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
+    <!-- The four below are asked for at the duty switch and nowhere else — see
+         `PermissionGateSheet`. A driver who has just installed the app has no
+         idea why any of them are wanted; a driver who has just tapped "go
+         online" is being told exactly what going online costs. -->
+
+    <!-- Android 13 turned notifications into a runtime permission that is denied
+         until asked for. Without it FCM messages still arrive and are still
+         *dropped on the floor* — no error, no tray entry, nothing the driver or
+         the logs can see. Every push this app sends depends on this line. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Duty outlives the app being on screen: the driver stays in the dispatch
+         index, and the rider's map keeps moving, until the driver themselves
+         goes offline. Android 10+ splits that out from foreground location and
+         Android 11+ only grants it from the app's settings page. -->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+
+    <!-- A ride request is worth seconds. Drivers spend their shift inside maps,
+         calls and other apps, so the request card is drawn over whatever is in
+         front of them rather than waiting in the notification shade. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <!-- Doze, and the far more aggressive OEM battery managers on the phones
+         most drivers actually carry, kill the background location ping
+         mid-shift. The driver reads that as "the app stopped sending me rides". -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
+    <!-- Granting background location is only half of it: from Android 10 the app
+         must *also* have a foreground service of type `location` running before
+         Android will deliver a fix off-screen. `DutyService` is that service,
+         and it is what keeps the socket and the 5s ping alive besides. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+
     <application
       android:name=".MainApplication"
       android:label="@string/app_name"
@@ -42,5 +76,15 @@
             <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
       </activity>
+
+      <!-- Runs for exactly as long as the driver is on duty. `location` must
+           match the type passed to `startForeground`, or Android 14+ refuses the
+           start outright; `exported=false` because nothing outside the app has
+           any business starting a shift. -->
+      <service
+        android:name=".duty.DutyService"
+        android:foregroundServiceType="location"
+        android:exported="false"
+        android:stopWithTask="false" />
     </application>
 </manifest>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The slide-to-confirm rail. Orange because this is the button that spends the
+  driver's money, and the accent is what the app uses for exactly that everywhere
+  else. 28dp corners on a 56dp track — a full pill, matching `SwipeAction`.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#ff6b05" />
+    <corners android:radius="28dp" />
+</shape>

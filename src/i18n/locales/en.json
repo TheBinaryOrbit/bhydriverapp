@@ -268,6 +268,43 @@
     "blockUnknownTitle": "Couldn't go online",
     "blockUnknownBody": "Something went wrong. Please try again."
   },
+  "duty": {
+    "serviceTitle": "You're online",
+    "serviceBody": "Looking for rides near you. Tap to open.",
+    "serviceFailed": "Your phone may stop sending you rides once you leave the app. Check the permissions and go online again."
+  },
+  "overlay": {
+    "yourFare": "Your fare",
+    "swipeToBid": "Swipe to bid {{fare}}",
+    "away": "{{distance}} away",
+    "trip": "{{distance}} trip"
+  },
+  "permissions": {
+    "title": "A few things before you go online",
+    "subtitle": "Your phone will quietly stop sending you rides without these. It takes about a minute, and you only do it once.",
+    "allow": "Allow",
+    "openSettings": "Settings",
+    "granted": "Allowed",
+    "goOnline": "Go online",
+    "notNow": "Not now",
+    "blockedHint": "Location access all the time is needed to go online.",
+    "backgroundLocation": {
+      "title": "Location all the time",
+      "body": "Keeps your position moving for the rider once you put the phone away. Sharing stops the moment you go offline."
+    },
+    "notifications": {
+      "title": "Notifications",
+      "body": "How a new ride reaches you when the app isn't open. Turned off, your phone drops these without a sound."
+    },
+    "overlay": {
+      "title": "Display over other apps",
+      "body": "Shows a new ride as a card on top of whatever you're using, so you don't miss one while you're in Maps."
+    },
+    "battery": {
+      "title": "Unrestricted battery",
+      "body": "Stops your phone closing the app in the background and dropping you out of dispatch without telling you."
+    }
+  },
   "busy": {
     "quickRideTitle": "You're on a QuickRide",
     "quickRideBody": "Finish it and new work starts arriving again straight away.",

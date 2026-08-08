@@ -1,3 +1,25 @@
 <resources>
     <string name="app_name">Bharat Yaatri Partner</string>
+
+    <!--
+      Channel name and description, as they appear in Android's own notification
+      settings. These are the only user-facing strings the app cannot pass down
+      from JS at the moment it needs them, so they follow the device language
+      rather than the language the driver picked in the app.
+    -->
+    <string name="duty_channel_name">On duty</string>
+    <string name="duty_channel_description">Shows while you are online so your phone keeps sending your location to riders.</string>
+
+    <!--
+      Shown when Android restarts the service on its own. It is a resource for
+      the same reason as the two above: at that moment the app's JS is not
+      running, so there is nothing left that knows the driver's language.
+    -->
+    <string name="duty_interrupted_title">Your shift was interrupted</string>
+    <string name="duty_interrupted_body">Your phone closed the app. Tap to go back online.</string>
+
+    <!-- Read out by TalkBack for the floating bubble, which is otherwise a
+         picture with no text on it. A resource for the same reason as the
+         above: the bubble belongs to the service, not to a screen. -->
+    <string name="duty_bubble_description">Bharat Yaatri — you are online. Tap to open.</string>
 </resources>

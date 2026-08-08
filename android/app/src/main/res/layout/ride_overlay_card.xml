@@ -1,0 +1,240 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The ride request card as it appears over another app.
+
+  This is the in-app bid card, rebuilt in Kotlin: the same offer at the top, the
+  same "your fare" stepper and slider, the same orange slide-to-confirm at the
+  bottom. That is the point of it — a driver decides on a ride the same way
+  whether or not they happened to be looking at the app when it arrived, and the
+  overlay used to ask them to learn a second, worse version with one fixed price
+  on a button.
+
+  Laid out for a glance: the fare is the largest thing on it because it is the
+  only number the driver decides on, and pickup and drop are single-line and
+  ellipsized — a driver mid-turn reads the first few words of a street name and
+  nothing more.
+-->
+<!--
+  The outer frame exists only for its padding. A view handed to `WindowManager`
+  has no parent to honour its margins, so the gap between the card and the screen
+  edges has to come from inside the layout. Even now the window is centred: the
+  padding is what keeps the elevation shadow off the screen edges.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="12dp"
+    android:clipToPadding="false">
+
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/overlay_card"
+    android:elevation="12dp"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/overlay_fare"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textColor="#002d4b"
+            android:textSize="28sp"
+            android:textStyle="bold" />
+
+        <!-- Seconds left. Sits next to the fare because the two together are the
+             whole decision: this much money, this much time to take it. -->
+        <TextView
+            android:id="@+id/overlay_countdown"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="34dp"
+            android:gravity="center"
+            android:paddingTop="3dp"
+            android:paddingBottom="3dp"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:background="@drawable/overlay_countdown_pill"
+            android:textColor="#ffffff"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/overlay_close"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="6dp"
+            android:gravity="center"
+            android:text="✕"
+            android:textColor="#6f6f70"
+            android:textSize="17sp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/overlay_detail"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="1dp"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:textColor="#6f6f70"
+        android:textSize="13sp" />
+
+    <TextView
+        android:id="@+id/overlay_pickup"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:drawablePadding="10dp"
+        android:drawableStart="@drawable/overlay_dot_pickup"
+        android:textColor="#002d4b"
+        android:textSize="15sp" />
+
+    <TextView
+        android:id="@+id/overlay_drop"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:drawablePadding="10dp"
+        android:drawableStart="@drawable/overlay_dot_drop"
+        android:textColor="#002d4b"
+        android:textSize="15sp" />
+
+    <!--
+      Hidden whole when the server sent no usable bid range. There is still a
+      swipe below it in that case — it just commits at the fare the rider
+      offered, which is exactly what the old button did.
+    -->
+    <LinearLayout
+        android:id="@+id/overlay_bid_section"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="16dp"
+            android:background="#e0e0e0" />
+
+        <TextView
+            android:id="@+id/overlay_fare_label"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:gravity="center"
+            android:textAllCaps="true"
+            android:letterSpacing="0.06"
+            android:textColor="#6f6f70"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/overlay_bid_minus"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:gravity="center"
+                android:background="@drawable/overlay_stepper"
+                android:text="−"
+                android:textColor="#002d4b"
+                android:textSize="22sp" />
+
+            <TextView
+                android:id="@+id/overlay_bid_value"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:fontFamily="sans-serif-black"
+                android:textColor="#002d4b"
+                android:textSize="26sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/overlay_bid_plus"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:gravity="center"
+                android:background="@drawable/overlay_stepper"
+                android:text="+"
+                android:textColor="#002d4b"
+                android:textSize="22sp" />
+        </LinearLayout>
+
+        <!--
+          `splitTrack=false` keeps the navy fill running under the thumb rather
+          than being notched out around it, which is what `FareSlider` draws. The
+          min/max height pair is what forces the 8dp rail — a `SeekBar` otherwise
+          stretches the drawable to its own height.
+        -->
+        <SeekBar
+            android:id="@+id/overlay_bid_slider"
+            android:layout_width="match_parent"
+            android:layout_height="36dp"
+            android:layout_marginTop="10dp"
+            android:paddingStart="2dp"
+            android:paddingEnd="2dp"
+            android:splitTrack="false"
+            android:minHeight="8dp"
+            android:maxHeight="8dp"
+            android:progressDrawable="@drawable/overlay_slider_track"
+            android:thumb="@drawable/overlay_slider_thumb" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/overlay_bid_min"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textColor="#6f6f70"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/overlay_bid_max"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="end"
+                android:textColor="#6f6f70"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Swiped, not tapped — this is the moment the money is committed, and it
+         is one thumb-width from a slider the driver was just dragging.
+
+         The last control on the card, and the only one that acts: with the range
+         and the slider here there is nothing left that the app could offer and
+         this cannot, so there is no second button competing for the thumb. -->
+    <com.xcentic.bhy.overlay.SwipeConfirmView
+        android:id="@+id/overlay_swipe"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:layout_marginTop="16dp" />
+</LinearLayout>
+</FrameLayout>

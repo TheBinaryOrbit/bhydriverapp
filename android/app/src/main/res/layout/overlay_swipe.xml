@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The inside of `SwipeConfirmView`. A `merge` because the view is itself the
+  frame: the track background, the height and the touch handling all belong to
+  the class, and a second `FrameLayout` here would only add a level to traverse.
+-->
+<merge xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:parentTag="android.widget.FrameLayout">
+
+    <!-- Centred in what is left once the parked knob is accounted for, which is
+         what the start padding is doing. Fades out as the knob crosses it: by
+         the commit point the driver is reading the gesture, not the words. -->
+    <TextView
+        android:id="@+id/overlay_swipe_label"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:paddingStart="52dp"
+        android:paddingEnd="4dp"
+        android:gravity="center"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:textColor="#ffffff"
+        android:textSize="15sp"
+        android:textStyle="bold" />
+
+    <ImageView
+        android:id="@+id/overlay_swipe_knob"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="start|center_vertical"
+        android:layout_marginStart="4dp"
+        android:background="@drawable/overlay_swipe_knob"
+        android:src="@drawable/overlay_arrow_forward"
+        android:scaleType="center"
+        android:contentDescription="@null" />
+</merge>

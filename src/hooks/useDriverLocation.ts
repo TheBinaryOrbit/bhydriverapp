@@ -132,7 +132,73 @@ function syncWatch(): void {
 }
 
 /**
- * Ends the watch for **every** consumer.
+ * Duty's own claim on the watch, held by no screen.
+ *
+ * Every other subscriber is a mounted component, and by the time the driver has
+ * swiped the app out of recents there are none — but the shift is still running
+ * and the rider is still watching the map. So duty keeps a claim of its own,
+ * registered once at module load and outliving every screen. It reads no fixes:
+ * `publish` feeds `driverSocket` before it notifies anyone, which is the only
+ * part that matters with nothing on screen.
+ */
+const dutyClaim: Subscriber = {
+  wants: false,
+  onFix: () => {},
+  onError: () => {},
+};
+subscribers.add(dutyClaim);
+
+/** Begins the watch on duty's behalf. Safe to call when one is already running. */
+export function startDriverWatch(): void {
+  dutyClaim.wants = true;
+  syncWatch();
+}
+
+/**
+ * One fix, coarse first and precise only if that comes back empty — the same
+ * two-stage attempt the hook makes, lifted out so the headless duty task can
+ * use it with no component mounted.
+ */
+export function takeDriverFix(
+  onError?: (message: string) => void,
+): Promise<LatLng | null> {
+  return new Promise<LatLng | null>(resolve => {
+    const took = (position: {
+      coords: {
+        latitude: number;
+        longitude: number;
+        heading?: number | null;
+        speed?: number | null;
+      };
+    }) => {
+      const next = {
+        lat: position.coords.latitude,
+        lng: position.coords.longitude,
+      };
+      publish(next, position.coords.heading, position.coords.speed);
+      resolve(next);
+    };
+
+    Geolocation.getCurrentPosition(
+      took,
+      // Coarse came back empty — fall through to the slow, certain one rather
+      // than telling the driver their location is off when it isn't.
+      () =>
+        Geolocation.getCurrentPosition(
+          took,
+          err => {
+            onError?.(err?.message ?? 'Could not get your location');
+            resolve(null);
+          },
+          PRECISE_FIX,
+        ),
+      APPROX_FIX,
+    );
+  });
+}
+
+/**
+ * Ends the watch for **every** consumer, duty's own claim included.
  *
  * Going off duty is the one event that means nobody needs the GPS any more, and
  * it can be tapped from either tab. A consumer-by-consumer stop would leave the
@@ -202,40 +268,10 @@ export function useDriverLocation(): DriverLocationState {
       return null;
     }
 
-    return new Promise<LatLng | null>(resolve => {
-      const took = (position: {
-        coords: {
-          latitude: number;
-          longitude: number;
-          heading?: number | null;
-          speed?: number | null;
-        };
-      }) => {
-        const next = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        };
-        publish(next, position.coords.heading, position.coords.speed);
-        resolve(next);
-      };
-
-      Geolocation.getCurrentPosition(
-        took,
-        // Coarse came back empty — fall through to the slow, certain one rather
-        // than telling the driver their location is off when it isn't.
-        () =>
-          Geolocation.getCurrentPosition(
-            took,
-            err => {
-              if (mounted.current) {
-                setError(err?.message ?? 'Could not get your location');
-              }
-              resolve(null);
-            },
-            PRECISE_FIX,
-          ),
-        APPROX_FIX,
-      );
+    return takeDriverFix(message => {
+      if (mounted.current) {
+        setError(message);
+      }
     });
   }, []);
 

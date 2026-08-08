@@ -20,6 +20,7 @@ import { CARD_SHADOW } from '../../components/profile/MenuSection';
 import DutyPanel, {
   DutyBlockNote,
 } from '../../components/quickride/DutyPanel';
+import PermissionGateSheet from '../../components/quickride/PermissionGateSheet';
 import {
   lastKnownFix,
   useDriverLocation,
@@ -142,9 +143,14 @@ export default function OutstationTab({ token }: Props) {
     switching,
     dutyBlock,
     dutyLocked,
+    backgroundUnavailable,
+    permissionGate,
     goOnline,
     goOffline,
     clearDutyBlock,
+    clearBackgroundWarning,
+    dismissPermissionGate,
+    continueAfterPermissions,
   } = useDuty({
     requestLocation: request,
     startWatching,
@@ -160,6 +166,19 @@ export default function OutstationTab({ token }: Props) {
       handedOver.current = null;
     }
   }, [liveRide]);
+
+  /**
+   * Duty can be flipped from either tab, and only the instance that flipped it
+   * learns the foreground service was refused — so the warning has to exist on
+   * both. See the same effect in `QuickRideTab`.
+   */
+  useEffect(() => {
+    if (!backgroundUnavailable) {
+      return;
+    }
+    notify(t('duty.serviceFailed'));
+    clearBackgroundWarning();
+  }, [backgroundUnavailable, clearBackgroundWarning, t]);
 
   // This tab stays mounted behind the trip screens, so nothing re-runs when the
   // driver comes back from one. The first focus is skipped — the hook's own
@@ -394,6 +413,14 @@ export default function OutstationTab({ token }: Props) {
             <EmptyState busy={busy} filtered={departure !== 'all'} />
           )
         }
+      />
+
+      {/* The same switch as QuickRide's, so the same gate — raised by whichever
+          tab the driver actually tapped. */}
+      <PermissionGateSheet
+        visible={permissionGate}
+        onClose={dismissPermissionGate}
+        onContinue={continueAfterPermissions}
       />
     </View>
   );
