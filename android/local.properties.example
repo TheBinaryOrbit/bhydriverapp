@@ -1,0 +1,36 @@
+# Copy to `local.properties` and fill in. That file is gitignored; this one is
+# the checked-in record of what belongs in it.
+#
+# Every key here is also read from the environment if it is not set in
+# `local.properties`, which is how CI supplies them. See the "Secrets" block at
+# the top of `android/app/build.gradle`.
+#
+# Android Studio writes `sdk.dir` into `local.properties` as well. That is
+# expected — leave it alone.
+
+# ---------------------------------------------------------------- Maps
+#
+# Google Maps / Navigation SDK key, injected into AndroidManifest.xml as
+# `com.google.android.geo.API_KEY`. Without it the app builds and runs, but
+# maps and in-app navigation fail to authorise.
+#
+# This is an Android *browser/app* key restricted to the package name and
+# signing certificate — not the server-side Distance Matrix key from the
+# backend's env.
+MAPS_API_KEY=AIza...
+
+# ---------------------------------------------------------------- Signing
+#
+# The Play upload keystore. All four are required together; with any of them
+# missing, `bundleRelease` and `assembleRelease` fail with an explanation and
+# debug builds are unaffected.
+#
+# The store file is resolved relative to the `android/` folder — so a keystore
+# at `android/my-release-key.jks` is just its filename here. Absolute paths
+# work too.
+#
+# Never put these in `gradle.properties`: that file is committed.
+MYAPP_UPLOAD_STORE_FILE=my-release-key.jks
+MYAPP_UPLOAD_KEY_ALIAS=my-key-alias
+MYAPP_UPLOAD_STORE_PASSWORD=
+MYAPP_UPLOAD_KEY_PASSWORD=

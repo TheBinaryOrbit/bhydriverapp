@@ -37,7 +37,12 @@ local.properties
 hs_err_pid*.log
 replay_pid*.log
 .cxx/
+# Signing keys. `debug.keystore` is the exception on purpose — it ships with the
+# RN template, its password is public, and every checkout needs it to build.
+# The release/upload key is the opposite of all three: both extensions are
+# listed because keytool writes `.jks` by default and the old rule missed it.
 *.keystore
+*.jks
 !debug.keystore
 .kotlin/
 

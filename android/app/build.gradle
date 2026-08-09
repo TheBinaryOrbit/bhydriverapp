@@ -74,30 +74,82 @@ def enableProguardInReleaseBuilds = false
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
 /**
- * Google Maps / Navigation SDK key.
+ * Secrets — the Maps key and the release signing credentials.
  *
- * Put it in `android/local.properties` — which is gitignored — as:
+ * Both come from `android/local.properties`, which is gitignored, falling back
+ * to the environment, which is how CI supplies them. See
+ * `android/local.properties.example` for the full list of keys.
  *
- *     MAPS_API_KEY=AIza...
- *
- * or export `MAPS_API_KEY` in the environment, which is how CI supplies it.
- * There is deliberately no fallback literal here: a key committed to the repo
- * is a key that has to be rotated. A checkout without one still builds, and
- * fails at runtime with "In-app navigation isn't enabled for this app yet" —
- * see `NavigationScreen`.
+ * **Nothing secret goes in `gradle.properties`.** That file is committed, so a
+ * password put there is a password in the repo's history forever. Same reason
+ * there is no fallback literal below: a key committed to the repo is a key that
+ * has to be rotated.
  */
-def mapsApiKey = ""
+def localProperties = new Properties()
 def localPropertiesFile = rootProject.file("local.properties")
 if (localPropertiesFile.exists()) {
-    def localProperties = new Properties()
     localPropertiesFile.withInputStream { localProperties.load(it) }
-    mapsApiKey = localProperties.getProperty("MAPS_API_KEY", "")
 }
-if (!mapsApiKey) {
-    mapsApiKey = System.getenv("MAPS_API_KEY") ?: ""
+
+/** `local.properties` first, then the environment. `""` when neither has it. */
+def secret = { String name ->
+    (localProperties.getProperty(name) ?: System.getenv(name) ?: "").trim()
 }
+
+/**
+ * A checkout without this still builds; it fails at runtime with "In-app
+ * navigation isn't enabled for this app yet" — see `NavigationScreen`.
+ */
+def mapsApiKey = secret("MAPS_API_KEY")
 if (!mapsApiKey) {
     logger.warn("MAPS_API_KEY is not set (android/local.properties or environment) — maps and in-app navigation will not authorise.")
+}
+
+/**
+ * Release signing. All four are required together — a partial set is a
+ * misconfiguration, not a reduced capability, so it is treated as absent.
+ */
+def releaseStoreFile = secret("MYAPP_UPLOAD_STORE_FILE")
+def releaseStorePassword = secret("MYAPP_UPLOAD_STORE_PASSWORD")
+def releaseKeyAlias = secret("MYAPP_UPLOAD_KEY_ALIAS")
+def releaseKeyPassword = secret("MYAPP_UPLOAD_KEY_PASSWORD")
+def releaseSigningReady =
+    releaseStoreFile && releaseStorePassword && releaseKeyAlias && releaseKeyPassword
+
+/**
+ * Resolved against the `android/` folder, **not** `android/app/`.
+ *
+ * `file(...)` in this script would resolve against the app module — which is
+ * why the debug config's `file('debug.keystore')` finds `android/app/debug.keystore`.
+ * The upload key sits beside `local.properties` at the `android/` level, so it
+ * is resolved the same way that file is. An absolute path also works.
+ */
+def releaseKeystore = releaseStoreFile ? rootProject.file(releaseStoreFile) : null
+
+if (releaseSigningReady && !releaseKeystore.exists()) {
+    throw new GradleException(
+        "MYAPP_UPLOAD_STORE_FILE points at ${releaseKeystore}, which does not exist. " +
+        "The path is resolved relative to the android/ folder."
+    )
+}
+
+/**
+ * Without credentials the release build falls back to the debug key so that
+ * `assembleRelease` still works for local testing — but the two tasks that
+ * produce something uploadable stop outright rather than emitting an artifact
+ * Play will reject at the end of a long upload.
+ */
+if (!releaseSigningReady) {
+    gradle.taskGraph.whenReady { graph ->
+        if (graph.allTasks.any { it.name == "bundleRelease" || it.name == "assembleRelease" }) {
+            throw new GradleException(
+                "Release signing is not configured. Set MYAPP_UPLOAD_STORE_FILE, " +
+                "MYAPP_UPLOAD_STORE_PASSWORD, MYAPP_UPLOAD_KEY_ALIAS and " +
+                "MYAPP_UPLOAD_KEY_PASSWORD in android/local.properties " +
+                "(see android/local.properties.example) or in the environment."
+            )
+        }
+    }
 }
 
 android {
@@ -114,6 +166,32 @@ android {
         versionName "1.0"
         // Injected into AndroidManifest.xml as `com.google.android.geo.API_KEY`.
         manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
+
+        /**
+         * Ninja's own parallelism — which `org.gradle.workers.max` does **not**
+         * control, contrary to the note in `gradle.properties`. That setting
+         * caps Gradle's worker threads; the C++ step is a single Gradle task
+         * that shells out to ninja, and ninja picks its own job count: cores + 2,
+         * so 18 concurrent clang++ processes on this 16-core chip.
+         *
+         * Eighteen clang++ at a few hundred MB each is what exhausts a 7 GB box.
+         * The symptom is not a compile error — it is a swarm of clang crash
+         * dumps in %TEMP% plus bogus I/O errors ("unspecified system_category
+         * error") on headers that are simply never reached, because CreateFile
+         * starts failing for want of memory.
+         *
+         * Job pools are the only lever AGP forwards to ninja. Raise
+         * `nativeBuildJobs` in `gradle.properties`, or on the command line, on a
+         * machine with more RAM — it costs build time, not correctness.
+         */
+        externalNativeBuild {
+            cmake {
+                def nativeJobs = project.findProperty("nativeBuildJobs") ?: "2"
+                arguments "-DCMAKE_JOB_POOL_COMPILE:STRING=compile",
+                          "-DCMAKE_JOB_POOL_LINK:STRING=link",
+                          "-DCMAKE_JOB_POOLS:STRING=compile=${nativeJobs};link=1"
+            }
+        }
     }
 
     compileOptions {
@@ -129,15 +207,24 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+
+        release {
+            if (releaseSigningReady) {
+                storeFile releaseKeystore
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            // Debug key only when nothing uploadable can be built anyway — the
+            // task graph check above stops `bundleRelease`/`assembleRelease`.
+            signingConfig releaseSigningReady ? signingConfigs.release : signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
