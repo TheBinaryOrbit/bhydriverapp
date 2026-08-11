@@ -17,12 +17,27 @@ import {
 } from '@googlemaps/react-native-navigation-sdk';
 
 import RootNavigator from './src/navigation/RootNavigator';
+import { reportInstallReferrer } from './src/services/installReferrer';
+import { initMetaSdk } from './src/services/metaEvents';
 import { registerForegroundPushHandler } from './src/services/pushService';
+
+// Before the first render, not in an effect: the SDK auto-logs the app-open
+// event, and an app-open reported a frame late is one reported after the driver
+// could already have left. It runs in the UI context only — the headless ones
+// this app starts for a shift or a push are not the app being opened.
+initMetaSdk();
 
 function App() {
   // Android hands a foreground push to JS and draws nothing itself, so without
   // a subscriber the message arrives and is discarded unobserved.
   useEffect(registerForegroundPushHandler, []);
+
+  // Once per install, and a no-op on every launch after it succeeds. Deliberately
+  // unawaited: nothing on screen depends on it, and Play can take its time
+  // answering.
+  useEffect(() => {
+    reportInstallReferrer();
+  }, []);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

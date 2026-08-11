@@ -18,6 +18,8 @@ import PrimaryButton from '../../components/PrimaryButton';
 import Steps from '../../components/Steps';
 import { ApiError } from '../../services/api';
 import { fetchVehicleTypes, onboardDriver } from '../../services/driverService';
+import { linkInstallToAccount } from '../../services/installReferrer';
+import { logSignupCompleted } from '../../services/metaEvents';
 import { saveSession } from '../../storage/authStorage';
 import { colors } from '../../theme/colors';
 import type { VehicleType } from '../../types/driver';
@@ -179,6 +181,15 @@ export default function DriverOnboardingScreen({ navigation, route }: Props) {
         phone: form.phoneNumber,
         driver: result.driver,
       });
+
+      // The account now exists, which is the event both halves of attribution
+      // are waiting for: Meta counts the registration, and our own backend ties
+      // this driver to the install that brought them. Neither is awaited and
+      // neither can throw — a signup that has already succeeded does not fail
+      // over telemetry.
+      logSignupCompleted();
+      linkInstallToAccount(token);
+
       notify(t('onboarding.success'));
       navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
     } catch (error) {

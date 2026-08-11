@@ -162,8 +162,8 @@ android {
         applicationId "com.xcentic.bhy"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode 11
+        versionName "3.0.0"
         // Injected into AndroidManifest.xml as `com.google.android.geo.API_KEY`.
         manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
 

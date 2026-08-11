@@ -51,6 +51,15 @@ export const API = {
      * driver's profile, so it carries the driver summary alongside the list.
      */
     reviewsByDriver: '/reviews/driver',
+    /**
+     * Where this install came from — see `docs/install-attribution.md`.
+     *
+     * `POST` is public by design: it fires on the first launch after an
+     * install, before any account exists to authenticate as. Nothing that pays
+     * out or grants access may ever read from what it records. Append `/link`
+     * for the authenticated call that ties the install to the new account.
+     */
+    installReferrers: '/install-referrers',
 
     // QuickRide — see `docs/driver-quick-ride.md`.
     /** Role-aware "where was I?" resume call. Takes `?latitude&longitude`. */

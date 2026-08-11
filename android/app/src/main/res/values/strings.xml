@@ -22,4 +22,17 @@
          picture with no text on it. A resource for the same reason as the
          above: the bubble belongs to the service, not to a screen. -->
     <string name="duty_bubble_description">Bharat Yaatri — you are online. Tap to open.</string>
+
+    <!--
+      Meta (Facebook) SDK, read by the SDK itself out of the manifest at startup.
+      Both are app identifiers rather than secrets — they ship inside every copy
+      of the binary, which is exactly why the **App Secret must never be here**;
+      it stays server-side.
+
+      The app id is the existing one: the same Meta app, package name and signing
+      key the ads already point at. Changing it orphans every campaign.
+    -->
+    <string name="facebook_app_id">2243719609387953</string>
+    <string name="facebook_client_token">a7469a9e63c7dc8007e282b782530bbf</string>
+    <string name="fb_login_protocol_scheme">fb2243719609387953</string>
 </resources>
