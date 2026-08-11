@@ -11,6 +11,13 @@ import { TurboModuleRegistry } from 'react-native';
  * with the whole decision already on it: the offer, a slider to name a different
  * fare, and the slide-to-confirm that commits to it.
  *
+ * Both products come through here — QuickRide and Outstation — and the card
+ * carries a `tag` saying which, because they are answered differently. A
+ * QuickRide bid is a race the driver has seconds to enter; an outstation bid
+ * stands for days on a trip that may depart next month. The card cannot let
+ * those two look alike: they arrive on the same window, one after the other, at
+ * a moment the driver is looking at another app entirely.
+ *
  * It is the in-app bid card, and that is the design constraint rather than a
  * coincidence. The overlay used to offer one fixed price on a button, so a
  * driver who wanted any other number had to open the app and find the ride again
@@ -60,6 +67,21 @@ export type RideOverlayAction = {
  */
 export type RideOverlayCard = {
   rideId: string;
+
+  /**
+   * Which product this is — "QuickRide" or "Outstation", already translated.
+   * Drawn as a chip in the card's top-left corner, and the first thing on it: a
+   * driver reads the tag before the fare, because ₹2,400 means something
+   * different on a trip to another city than it does on a ride across town.
+   */
+  tag: string;
+  /**
+   * The chip's fill, as `#rrggbb`. The palette lives in `theme/colors` and JS
+   * owns it for the same reason it owns the strings — Kotlin has no business
+   * knowing which product is orange.
+   */
+  tagColor: string;
+
   pickup: string;
   drop: string;
   /** What the rider is offering, pre-formatted — e.g. "₹420". */
@@ -91,10 +113,23 @@ export type RideOverlayCard = {
   swipeLabel: string;
 
   /**
-   * Seconds until the card removes itself. The ride's own `expiresAt` — a card
-   * left on screen past it can only produce a bid the server rejects.
+   * Seconds until the card removes itself.
+   *
+   * For a QuickRide this is the ride's own `expiresAt` — a card left on screen
+   * past it can only produce a bid the server rejects. For an outstation trip
+   * the offer runs for hours, so it is instead how long the window sits over
+   * the driver's other app before getting out of the way.
    */
   expiresInSeconds: number;
+  /**
+   * Whether the seconds are drawn in the pill next to the fare.
+   *
+   * True for a QuickRide, where the number *is* the decision — this much money,
+   * this much time to take it. False for an outstation trip: the card goes away
+   * on its own but the offer does not, and a ticking clock on a trip the driver
+   * has until tomorrow to bid on would be a lie that costs them work.
+   */
+  showCountdown: boolean;
 };
 
 export interface Spec extends TurboModule {

@@ -90,11 +90,11 @@ export default function BidControl({
 
   return (
     <View>
-      <Text className="text-center text-[11px] font-bold uppercase tracking-wide text-muted">
+      <Text className="text-center text-[10px] font-bold uppercase tracking-wide text-muted">
         {t('quickRide.yourFare')}
       </Text>
 
-      <View className="mt-1">
+      <View className="mt-0.5">
         <FareSlider
           min={min}
           max={max}
@@ -106,12 +106,12 @@ export default function BidControl({
 
       {error ? (
         <View
-          className="mt-3 flex-row items-start rounded-xl px-3 py-2.5"
+          className="mt-2.5 flex-row items-start rounded-xl px-3 py-2"
           style={{ backgroundColor: colors.dangerSurface }}
         >
           <MaterialIcons
             name="error-outline"
-            size={14}
+            size={13}
             color={colors.danger}
             style={{ marginTop: 1 }}
           />
@@ -125,8 +125,10 @@ export default function BidControl({
       ) : null}
 
       {/* Swiped, not tapped — this is the moment the money is committed, and it
-          is one thumb-width from a slider the driver was just dragging. */}
-      <View className="mt-4">
+          is one thumb-width from a slider the driver was just dragging.
+          `compact` because this one lives in a card in a scrolling list, not on
+          a trip screen of its own. */}
+      <View className="mt-3">
         <SwipeAction
           label={
             lowering
@@ -136,12 +138,13 @@ export default function BidControl({
           icon="gavel"
           loading={submitting}
           disabled={disabled}
+          compact
           onConfirm={() => onSubmit(fare)}
         />
       </View>
 
       {note ? (
-        <Text className="mt-2.5 text-center text-[11px] leading-4 text-muted">
+        <Text className="mt-2 text-center text-[10px] leading-4 text-muted">
           {note}
         </Text>
       ) : null}

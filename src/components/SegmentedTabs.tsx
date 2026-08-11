@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 import { colors } from '../theme/colors';
@@ -9,6 +9,11 @@ export type SegmentedTab<T extends string> = {
   label: string;
   /** MaterialIcons name shown before the label. */
   icon?: string;
+  /**
+   * How many things are waiting on this tab. Drawn as a red circle pinned to
+   * the segment's top-right corner; `0` and `undefined` draw nothing.
+   */
+  badge?: number;
 };
 
 type Props<T extends string> = {
@@ -75,9 +80,45 @@ export default function SegmentedTabs<T extends string>({
             >
               {tab.label}
             </Text>
+
+            {/* Absolutely positioned so it hangs in the corner without moving
+                the icon and label, which stay centred in the segment whether
+                or not there is anything to count. */}
+            {tab.badge ? (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText} numberOfLines={1}>
+                  {tab.badge > 99 ? '99+' : tab.badge}
+                </Text>
+              </View>
+            ) : null}
           </Pressable>
         );
       })}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  /**
+   * Inset from the segment's own corner rather than hung outside it: the pill
+   * is the last thing in the track and a negative offset would push the circle
+   * over the rounded edge of it.
+   */
+  badge: {
+    position: 'absolute',
+    top: 1,
+    right: 6,
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 5,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.danger,
+  },
+  badgeText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+});

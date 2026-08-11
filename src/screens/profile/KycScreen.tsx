@@ -16,6 +16,8 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../../navigation/types';
 import CircularCountdown from '../../components/CircularCountdown';
+import HowToRegister from '../../components/kyc/HowToRegister';
+import KeyboardSafeView from '../../components/KeyboardSafeView';
 import PrimaryButton from '../../components/PrimaryButton';
 import ScreenHeader from '../../components/ScreenHeader';
 import { CARD_SHADOW } from '../../components/profile/MenuSection';
@@ -448,6 +450,11 @@ function SignupKyc({ phone, navigation }: { phone: string; navigation: Nav }) {
           state={verified ? 'verified' : failedReason ? 'failed' : 'pending'}
         />
 
+        {/* The walkthrough video, on the first screen after the OTP. Above the
+            steps rather than below them: a driver who wants watching through
+            this wants it before they start reading, not after. */}
+        <HowToRegister />
+
         {verified ? (
           <InfoNote
             icon="lock-outline"
@@ -627,57 +634,63 @@ function KycWebViewModal({
       animationType="slide"
       onRequestClose={onClose}
     >
-      <View className="flex-1 bg-white" style={{ paddingTop: insets.top }}>
-        <View className="flex-row items-center border-b border-border px-4 pb-3 pt-2">
-          {/* Cancelling is fine — it just leaves KYC incomplete. */}
-          <Pressable
-            onPress={onClose}
-            hitSlop={10}
-            className="active:opacity-60"
-          >
-            <MaterialIcons name="close" size={24} color={colors.secondary} />
-          </Pressable>
-          <Text className="ml-3 flex-1 text-base font-bold text-secondary">
-            {t('kyc.webviewTitle')}
-          </Text>
-        </View>
+      {/* The inputs on this screen belong to DigiLocker's page rather than to
+          the app, but the driver still types an Aadhaar number and an OTP into
+          them — and a `Modal` is its own window, so it gets none of the
+          avoidance from the screen underneath. */}
+      <KeyboardSafeView className="flex-1 bg-white">
+        <View className="flex-1" style={{ paddingTop: insets.top }}>
+          <View className="flex-row items-center border-b border-border px-4 pb-3 pt-2">
+            {/* Cancelling is fine — it just leaves KYC incomplete. */}
+            <Pressable
+              onPress={onClose}
+              hitSlop={10}
+              className="active:opacity-60"
+            >
+              <MaterialIcons name="close" size={24} color={colors.secondary} />
+            </Pressable>
+            <Text className="ml-3 flex-1 text-base font-bold text-secondary">
+              {t('kyc.webviewTitle')}
+            </Text>
+          </View>
 
-        {sessionUrl ? (
-          <WebView
-            source={{ uri: sessionUrl }}
-            javaScriptEnabled
-            domStorageEnabled
-            thirdPartyCookiesEnabled
-            startInLoadingState
-            renderLoading={() => (
-              <View className="flex-1 items-center justify-center bg-white">
-                <ActivityIndicator color={colors.secondary} />
-              </View>
-            )}
-            // Caught before the page loads, so the marketing site never
-            // flashes up: refusing the request closes the WebView instead.
-            onShouldStartLoadWithRequest={request => {
-              if (isKycRedirect(request.url)) {
-                onFinish();
-                return false;
-              }
-              return true;
-            }}
-            // Backstop for redirects the request handler doesn't see (JS
-            // `location` changes, history pushes). `onFinish` runs once either
-            // way. The flow spans several pages, so only the redirect ends it.
-            onNavigationStateChange={nav => {
-              if (isKycRedirect(nav.url)) {
-                onFinish();
-              }
-            }}
-            onError={() => {
-              onClose();
-              notify(t('kyc.webviewFailed'));
-            }}
-          />
-        ) : null}
-      </View>
+          {sessionUrl ? (
+            <WebView
+              source={{ uri: sessionUrl }}
+              javaScriptEnabled
+              domStorageEnabled
+              thirdPartyCookiesEnabled
+              startInLoadingState
+              renderLoading={() => (
+                <View className="flex-1 items-center justify-center bg-white">
+                  <ActivityIndicator color={colors.secondary} />
+                </View>
+              )}
+              // Caught before the page loads, so the marketing site never
+              // flashes up: refusing the request closes the WebView instead.
+              onShouldStartLoadWithRequest={request => {
+                if (isKycRedirect(request.url)) {
+                  onFinish();
+                  return false;
+                }
+                return true;
+              }}
+              // Backstop for redirects the request handler doesn't see (JS
+              // `location` changes, history pushes). `onFinish` runs once either
+              // way. The flow spans several pages, so only the redirect ends it.
+              onNavigationStateChange={nav => {
+                if (isKycRedirect(nav.url)) {
+                  onFinish();
+                }
+              }}
+              onError={() => {
+                onClose();
+                notify(t('kyc.webviewFailed'));
+              }}
+            />
+          ) : null}
+        </View>
+      </KeyboardSafeView>
     </Modal>
   );
 }

@@ -13,6 +13,11 @@
   only number the driver decides on, and pickup and drop are single-line and
   ellipsized — a driver mid-turn reads the first few words of a street name and
   nothing more.
+
+  One card serves both products. The tag in the top-left is what tells them
+  apart, and it is deliberately above the fare: an outstation trip and a
+  QuickRide arrive on the same window minutes apart and are worth wildly
+  different amounts of the driver's day.
 -->
 <!--
   The outer frame exists only for its padding. A view handed to `WindowManager`
@@ -40,17 +45,35 @@
         android:orientation="horizontal"
         android:gravity="center_vertical">
 
+        <!-- Which product this is, and the first thing read on the card: the
+             same ₹2,400 means one thing on a ride across town and another on a
+             trip to the next state. Tinted from JS — see `overlay_tag`. -->
         <TextView
-            android:id="@+id/overlay_fare"
-            android:layout_width="0dp"
+            android:id="@+id/overlay_tag"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:textColor="#002d4b"
-            android:textSize="28sp"
+            android:paddingTop="3dp"
+            android:paddingBottom="3dp"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:background="@drawable/overlay_tag"
+            android:maxLines="1"
+            android:textAllCaps="true"
+            android:letterSpacing="0.06"
+            android:textColor="#ffffff"
+            android:textSize="11sp"
             android:textStyle="bold" />
 
-        <!-- Seconds left. Sits next to the fare because the two together are the
-             whole decision: this much money, this much time to take it. -->
+        <!-- Pushes the countdown and the ✕ to the far edge, whatever the tag
+             happens to say in the driver's language. -->
+        <View
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+
+        <!-- Seconds left, on the products that have them: QuickRide, where the
+             money and the time together are the whole decision. Gone on an
+             outstation trip, whose offer outlives this window by hours. -->
         <TextView
             android:id="@+id/overlay_countdown"
             android:layout_width="wrap_content"
@@ -76,6 +99,17 @@
             android:textColor="#6f6f70"
             android:textSize="17sp" />
     </LinearLayout>
+
+    <!-- The offer. Still the largest thing on the card; it moved out of the
+         header row to make room for the tag beside the countdown. -->
+    <TextView
+        android:id="@+id/overlay_fare"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:textColor="#002d4b"
+        android:textSize="28sp"
+        android:textStyle="bold" />
 
     <TextView
         android:id="@+id/overlay_detail"

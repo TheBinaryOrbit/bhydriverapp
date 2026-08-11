@@ -6,8 +6,10 @@ import { useTranslation } from 'react-i18next';
 
 import Screen from '../components/Screen';
 import SegmentedTabs from '../components/SegmentedTabs';
+import UpdatePrompt from '../components/home/UpdatePrompt';
 import UpiPrompt from '../components/home/UpiPrompt';
 import WelcomePrompt from '../components/home/WelcomePrompt';
+import { useAppSettings } from '../hooks/useAppSettings';
 import { useAuth } from '../hooks/useAuth';
 import { useUpiId } from '../hooks/useUpiId';
 import { useWelcome } from '../hooks/useWelcome';
@@ -18,6 +20,10 @@ import {
   setHomeTab,
   type HomeTab,
 } from '../services/homeTab';
+import {
+  currentOutstationCount,
+  onOutstationCountChange,
+} from '../services/outstationCount';
 import OutstationTab from './home/OutstationTab';
 import QuickRideTab from './home/QuickRideTab';
 
@@ -49,6 +55,14 @@ export default function HomeScreen() {
   useEffect(() => onHomeTabChange(setTab), []);
 
   /**
+   * How many trips the Outstation list is holding, for the badge on its tab.
+   * Published by the tab itself — see `services/outstationCount` for why the
+   * number travels this way rather than the hook moving up here.
+   */
+  const [outstationCount, setOutstationCount] = useState(currentOutstationCount);
+  useEffect(() => onOutstationCountChange(setOutstationCount), []);
+
+  /**
    * Payouts go to a UPI id, and a driver can work a whole shift without ever
    * opening the profile screen that asks for one. So the home screen asks —
    * once, and only when the cache and then the API both come back empty.
@@ -57,6 +71,12 @@ export default function HomeScreen() {
 
   /** Shown once, on the first home screen of a new sign-in or sign-up. */
   const welcome = useWelcome(driver?._id);
+
+  /**
+   * `GET /settings/android` — the store build and the admin's home notice. Read
+   * here, and again on every foreground; nothing about it is pushed.
+   */
+  const settings = useAppSettings();
 
   const firstName = driver?.name?.trim().split(/\s+/)[0];
 
@@ -88,6 +108,10 @@ export default function HomeScreen() {
                 key: 'outstation',
                 label: t('home.tabs.outstation'),
                 icon: 'map',
+                // Kept on while the tab is open: this is a count of what's on
+                // offer, not an unread mark, and a driver scrolling the list
+                // still wants to know how many are in it.
+                badge: outstationCount,
               },
             ]}
           />
@@ -105,7 +129,10 @@ export default function HomeScreen() {
             tab === 'quickRide' ? null : styles.hidden,
           ]}
         >
-          <QuickRideTab token={token} />
+          {/* The admin's notice rides down here rather than opening as a
+              sheet — it fills the offline panel, where a driver who is not
+              working yet has time to read it. */}
+          <QuickRideTab token={token} notice={settings.notice} />
         </View>
 
         <View
@@ -118,8 +145,19 @@ export default function HomeScreen() {
         </View>
       </View>
 
+      {/* Ahead of everything else on this screen. A build the server has
+          disowned is the one thing worth interrupting a driver for, and a
+          mandatory one has no way past it at all — so nothing below is offered
+          underneath it. */}
+      <UpdatePrompt
+        visible={settings.updateVisible}
+        version={settings.update.version}
+        mandatory={settings.update.mandatory}
+        onLater={settings.dismissUpdate}
+      />
+
       <WelcomePrompt
-        visible={welcome.visible}
+        visible={welcome.visible && !settings.updateVisible}
         name={firstName}
         onClose={welcome.dismiss}
         onViewPlan={() => {
@@ -128,11 +166,11 @@ export default function HomeScreen() {
         }}
       />
 
-      {/* Two sheets can't share the screen, and a brand-new driver is owed
-          both. The greeting goes first — one tap and it's gone — so the UPI
-          ask, which has no way past it, isn't what they're welcomed with. */}
+      {/* Sheets can't share the screen, and a brand-new driver is owed several.
+          The greeting goes first — one tap and it's gone — so the UPI ask,
+          which has no way past it, isn't what they're welcomed with. */}
       <UpiPrompt
-        visible={upi.missing && !welcome.visible}
+        visible={upi.missing && !welcome.visible && !settings.updateVisible}
         saving={upi.saving}
         error={upi.error}
         onChange={upi.clearError}

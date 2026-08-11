@@ -106,7 +106,7 @@ export default function OutstationRequestCard({
 
   return (
     <View
-      className="mb-4 rounded-2xl border border-border bg-white p-4"
+      className="mb-3 rounded-2xl border border-border bg-white p-3.5"
       style={CARD_SHADOW}
     >
       {/* Departure first — it is what makes this an outstation trip rather
@@ -115,11 +115,11 @@ export default function OutstationRequestCard({
         <View className="flex-1 flex-row items-center">
           <MaterialIcons
             name={scheduled ? 'event' : 'bolt'}
-            size={15}
+            size={14}
             color={colors.tertiary}
           />
           <Text
-            className="ml-1.5 flex-1 text-[13px] font-extrabold text-secondary"
+            className="ml-1.5 flex-1 text-[12px] font-extrabold text-secondary"
             numberOfLines={1}
           >
             {departs ?? t('outstation.departUnknown')}
@@ -128,9 +128,9 @@ export default function OutstationRequestCard({
 
         {closing ? (
           <View className="ml-2 flex-row items-center">
-            <MaterialIcons name="timer" size={13} color={colors.danger} />
+            <MaterialIcons name="timer" size={12} color={colors.danger} />
             <Text
-              className="ml-1 text-xs font-bold"
+              className="ml-1 text-[11px] font-bold"
               style={{ color: colors.danger }}
             >
               {formatCountdown(remaining!)}
@@ -142,30 +142,31 @@ export default function OutstationRequestCard({
       {/* The distance to the pickup moved into the stat row below, with the
           other two numbers. */}
       {lead ? (
-        <View className="mt-1.5 flex-row">
-          <View className="rounded-full bg-surface px-2.5 py-1">
-            <Text className="text-[11px] font-bold text-muted">{lead}</Text>
+        <View className="mt-1 flex-row">
+          <View className="rounded-full bg-surface px-2 py-0.5">
+            <Text className="text-[10px] font-bold text-muted">{lead}</Text>
           </View>
         </View>
       ) : null}
 
       {/* The offer. */}
-      <View className="mt-3 flex-row items-end">
-        <Text className="text-[34px] font-extrabold leading-[38px] text-secondary">
+      <View className="mt-2.5 flex-row items-end">
+        <Text className="text-[27px] font-extrabold leading-[30px] text-secondary">
           {rupees(card.offeredFare)}
         </Text>
-        <Text className="mb-1.5 ml-2 text-xs font-semibold text-muted">
+        <Text className="mb-1 ml-1.5 text-[11px] font-semibold text-muted">
           {t('quickRide.riderOffers')}
         </Text>
       </View>
       {hint ? (
-        <Text className="mt-0.5 text-[11px] font-semibold text-muted">
+        <Text className="mt-0.5 text-[10px] font-semibold text-muted">
           {hint}
         </Text>
       ) : null}
 
-      <View className="mt-4">
+      <View className="mt-3">
         <RouteLine
+          compact
           pickup={card.pickupLocationName}
           drop={card.dropLocationName}
         />
@@ -173,7 +174,7 @@ export default function OutstationRequestCard({
 
       {/* The three numbers that decide whether this trip is worth taking, out
           of the prose and into a row that can be read at a glance. */}
-      <View className="mt-4">
+      <View className="mt-3">
         <TripStats
           toPickup={away}
           tripDistance={distance(card.estimatedDistanceKm)}
@@ -183,7 +184,7 @@ export default function OutstationRequestCard({
 
       {/* What's left of the old summary line: the vehicle class this trip
           wants, and the window a bid has to land inside. */}
-      <Text className="mt-3 text-center text-[11px] font-semibold text-muted">
+      <Text className="mt-2.5 text-center text-[10px] font-semibold text-muted">
         {summaryLine([
           card.vehicleTypeName,
           card.bidBounds
@@ -195,7 +196,7 @@ export default function OutstationRequestCard({
         ])}
       </Text>
 
-      <View className="mt-4 border-t border-border pt-3">
+      <View className="mt-3 border-t border-border pt-2.5">
         {bid ? (
           <>
             <BidSummary
@@ -209,7 +210,7 @@ export default function OutstationRequestCard({
             />
 
             {editing ? (
-              <View className="mt-4">
+              <View className="mt-3">
                 <BidControl
                   rideId={card.rideId}
                   bounds={card.bidBounds}
@@ -272,25 +273,25 @@ function BidSummary({
     <View>
       <View className="flex-row items-center justify-between">
         <View>
-          <Text className="text-[11px] font-bold uppercase tracking-wide text-muted">
+          <Text className="text-[10px] font-bold uppercase tracking-wide text-muted">
             {t('quickRide.yourBid')}
           </Text>
-          <Text className="mt-0.5 text-lg font-extrabold text-secondary">
+          <Text className="text-base font-extrabold text-secondary">
             {rupees(bid.fare)}
           </Text>
         </View>
 
         <View
-          className="flex-row items-center rounded-full px-3 py-1.5"
+          className="flex-row items-center rounded-full px-2.5 py-1"
           style={{ backgroundColor: colors.warningSurface }}
         >
           <MaterialIcons
             name="hourglass-top"
-            size={13}
+            size={12}
             color={colors.warning}
           />
           <Text
-            className="ml-1.5 text-xs font-bold"
+            className="ml-1.5 text-[11px] font-bold"
             style={{ color: colors.warning }}
           >
             {t('outstation.bidStanding')}
@@ -298,15 +299,15 @@ function BidSummary({
         </View>
       </View>
 
-      <View className="mt-3 flex-row">
+      <View className="mt-2.5 flex-row">
         <Pressable
           onPress={editing ? onCancelEdit : onEdit}
           disabled={busy || blocked}
-          className={`mr-2 flex-1 items-center rounded-xl border border-border py-3 ${
+          className={`mr-2 flex-1 items-center rounded-xl border border-border py-2.5 ${
             busy || blocked ? 'opacity-50' : 'active:bg-surface'
           }`}
         >
-          <Text className="text-sm font-bold text-secondary">
+          <Text className="text-[13px] font-bold text-secondary">
             {/* A bid can only ever be lowered, never walked back up. */}
             {editing ? t('common.cancel') : t('quickRide.lowerBid')}
           </Text>
@@ -315,12 +316,15 @@ function BidSummary({
         <Pressable
           onPress={onWithdraw}
           disabled={busy}
-          className={`flex-1 items-center rounded-xl border py-3 ${
+          className={`flex-1 items-center rounded-xl border py-2.5 ${
             busy ? 'opacity-50' : 'active:opacity-70'
           }`}
           style={{ borderColor: colors.danger }}
         >
-          <Text className="text-sm font-bold" style={{ color: colors.danger }}>
+          <Text
+            className="text-[13px] font-bold"
+            style={{ color: colors.danger }}
+          >
             {t('quickRide.withdraw')}
           </Text>
         </Pressable>

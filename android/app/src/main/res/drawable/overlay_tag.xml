@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The product chip — "QuickRide" or "Outstation".
+
+  The fill is a placeholder: it is tinted at runtime with the colour JS sends,
+  because which product is orange is a brand decision and belongs with the rest
+  of the palette in `theme/colors`, not in a drawable nobody would think to look
+  in.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#002d4b" />
+    <corners android:radius="999dp" />
+</shape>

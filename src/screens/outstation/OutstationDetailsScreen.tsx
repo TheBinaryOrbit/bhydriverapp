@@ -56,6 +56,13 @@ type Props = NativeStackScreenProps<RootStackParamList, 'OutstationDetails'>;
 const OTP_LENGTH = 4;
 
 /**
+ * Shorter than the map's own default, because everything under it has to fit
+ * on the same screen. Still enough to see which way the leg runs, which is all
+ * this map is for — the turn-by-turn is a button away.
+ */
+const MAP_HEIGHT = 150;
+
+/**
  * This screen's own claim on duty, distinct from `useOutstation`'s.
  *
  * Two keys, not one: the hook holds duty for as long as the trip is `arriving`,
@@ -497,15 +504,18 @@ export default function OutstationDetailsScreen({ navigation, route }: Props) {
     <KeyboardSafeView>
       <ScreenHeader title={title} />
 
+      {/* Sized to land inside one screen without scrolling on an ordinary
+          phone — see the same note on `RideDetailsScreen`. The `ScrollView`
+          stays as the safety net for small screens and large font settings. */}
       <ScrollView
-        contentContainerStyle={{ padding: 20, paddingBottom: 24 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 16 }}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
         {/* The leg being driven, first: here to the pickup, then here to the
             drop. Same rule as the route card below — one destination at a
             time, the one the driver is actually going to. */}
-        <RoutePreviewMap from={driverAt} to={target} />
+        <RoutePreviewMap height={MAP_HEIGHT} from={driverAt} to={target} />
 
         {/* Then the OTP: at the pickup it is the only thing standing between
             the driver and the trip starting, so it doesn't make them scroll. */}
@@ -523,7 +533,9 @@ export default function OutstationDetailsScreen({ navigation, route }: Props) {
           />
         ) : null}
 
-        {/* Then the rider, and the call button that goes with them. */}
+        {/* Then the rider, the call button that goes with them, and the trip's
+            own numbers underneath — those used to be the small print on a fare
+            card that no longer exists. */}
         <RiderCard ride={ride} onCall={handleCall} />
 
         <StatusBanner status={status} />
@@ -532,17 +544,17 @@ export default function OutstationDetailsScreen({ navigation, route }: Props) {
 
         {tracking && trackingFailed ? (
           <View
-            className="mt-4 flex-row items-start rounded-2xl p-4"
+            className="mt-3 flex-row items-start rounded-2xl p-3"
             style={{ backgroundColor: colors.dangerSurface }}
           >
             <MaterialIcons
               name="location-off"
-              size={18}
+              size={16}
               color={colors.danger}
               style={{ marginTop: 1 }}
             />
             <Text
-              className="ml-2.5 flex-1 text-xs leading-5"
+              className="ml-2 flex-1 text-[11px] leading-4"
               style={{ color: colors.danger }}
             >
               {t('outstationRide.trackingFailed')}
@@ -550,13 +562,11 @@ export default function OutstationDetailsScreen({ navigation, route }: Props) {
           </View>
         ) : null}
 
-        <FareCard ride={ride} />
-
         <View
-          className="mt-4 rounded-2xl border border-border bg-white p-4"
+          className="mt-3 rounded-2xl border border-border bg-white p-3.5"
           style={CARD_SHADOW}
         >
-          <Text className="mb-3 text-xs font-bold uppercase tracking-wide text-muted">
+          <Text className="mb-2 text-[10px] font-bold uppercase tracking-wide text-muted">
             {t('outstationRide.route')}
           </Text>
 
@@ -564,6 +574,7 @@ export default function OutstationDetailsScreen({ navigation, route }: Props) {
               knowing where it goes — and on a 400 km run they need it to plan
               fuel and stops, not just at the moment they set off. */}
           <RouteLine
+            compact
             pickup={ride.pickupLocationName}
             drop={ride.dropLocationName}
             emphasis={phase}
@@ -579,7 +590,7 @@ export default function OutstationDetailsScreen({ navigation, route }: Props) {
               is the one most will pick; the in-app option carries the plainer
               icon since it is the one that keeps them here. */}
           {phase === 'drop' ? (
-            <View className="mt-4 flex-row gap-2.5">
+            <View className="mt-3 flex-row gap-2.5">
               <View className="flex-1">
                 <NavigateButton
                   label={t('outstationRide.navigateMaps')}
@@ -596,7 +607,7 @@ export default function OutstationDetailsScreen({ navigation, route }: Props) {
               </View>
             </View>
           ) : (
-            <View className="mt-4">
+            <View className="mt-3">
               <NavigateButton
                 label={t('ride.goToPickup')}
                 icon="navigation"
@@ -606,40 +617,62 @@ export default function OutstationDetailsScreen({ navigation, route }: Props) {
           )}
 
           {phase === 'drop' ? (
-            <Text className="mt-2.5 text-center text-[11px] leading-4 text-muted">
+            <Text className="mt-2 text-center text-[10px] leading-4 text-muted">
               {t('outstationRide.navigateDropNote')}
             </Text>
           ) : null}
         </View>
       </ScrollView>
 
+      {/* The action bar: what this trip pays, and the swipe that moves it on.
+          The fare sits beside the swipe rather than in a card of its own — see
+          the same bar on `RideDetailsScreen`. */}
       <View
-        className="border-t border-border bg-white px-5 pt-4"
-        style={{ paddingBottom: insets.bottom + 12 }}
+        className="flex-row items-center border-t border-border bg-white px-4 pt-2.5"
+        style={{ paddingBottom: insets.bottom + 8 }}
       >
-        {status === 'assigned' ? (
-          <SwipeAction
-            label={t('outstationRide.start')}
-            icon="play-arrow"
-            loading={starting}
-            onConfirm={handleStart}
-          />
-        ) : status === 'arriving' ? (
-          <SwipeAction
-            label={t('outstationRide.confirmPickup')}
-            icon="how-to-reg"
-            loading={confirming}
-            disabled={locked || otp.length < OTP_LENGTH}
-            onConfirm={() => handlePickup(otp)}
-          />
-        ) : (
-          <SwipeAction
-            label={t('outstationRide.complete')}
-            icon="check-circle"
-            loading={completing}
-            onConfirm={handleComplete}
-          />
-        )}
+        {/* Capped: the swipe next to it needs a track long enough to be worth
+            swiping, and an outstation fare runs to five figures. */}
+        <View className="mr-3 max-w-[104px]">
+          <Text className="text-[9px] font-bold uppercase tracking-wide text-muted">
+            {t('ride.youEarn')}
+          </Text>
+          <Text
+            className="text-[19px] font-extrabold leading-6 text-secondary"
+            numberOfLines={1}
+          >
+            {rupees(ride.finalFare ?? ride.offeredFare)}
+          </Text>
+        </View>
+
+        <View className="flex-1">
+          {status === 'assigned' ? (
+            <SwipeAction
+              compact
+              label={t('outstationRide.start')}
+              icon="play-arrow"
+              loading={starting}
+              onConfirm={handleStart}
+            />
+          ) : status === 'arriving' ? (
+            <SwipeAction
+              compact
+              label={t('outstationRide.confirmPickup')}
+              icon="how-to-reg"
+              loading={confirming}
+              disabled={locked || otp.length < OTP_LENGTH}
+              onConfirm={() => handlePickup(otp)}
+            />
+          ) : (
+            <SwipeAction
+              compact
+              label={t('outstationRide.complete')}
+              icon="check-circle"
+              loading={completing}
+              onConfirm={handleComplete}
+            />
+          )}
+        </View>
       </View>
     </KeyboardSafeView>
   );
@@ -670,12 +703,12 @@ function NavigateButton({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
-      className="flex-row items-center justify-center rounded-xl border px-2.5 py-3.5 active:opacity-70"
+      className="flex-row items-center justify-center rounded-xl border px-2.5 py-2.5 active:opacity-70"
       style={{ borderColor: colors.secondary }}
     >
-      <MaterialIcons name={icon} size={18} color={colors.secondary} />
+      <MaterialIcons name={icon} size={16} color={colors.secondary} />
       <Text
-        className="ml-1.5 shrink text-sm font-bold text-secondary"
+        className="ml-1.5 shrink text-[13px] font-bold text-secondary"
         numberOfLines={1}
       >
         {label}
@@ -722,12 +755,12 @@ function StatusBanner({ status }: { status: OutstationRideStatus }) {
 
   return (
     <View
-      className="mt-4 flex-row items-center rounded-2xl px-4 py-3"
+      className="mt-3 flex-row items-center rounded-2xl px-3 py-2"
       style={{ backgroundColor: copy.bg }}
     >
-      <MaterialIcons name={copy.icon} size={18} color={copy.fg} />
+      <MaterialIcons name={copy.icon} size={16} color={copy.fg} />
       <Text
-        className="ml-2 flex-1 text-[13px] font-bold"
+        className="ml-2 flex-1 text-[11px] font-bold leading-4"
         style={{ color: copy.fg }}
       >
         {copy.text}
@@ -745,26 +778,42 @@ function DepartureCard({ ride }: { ride: OutstationRide }) {
 
   return (
     <View
-      className="mt-4 rounded-2xl border border-border bg-white p-4"
+      className="mt-3 rounded-2xl border border-border bg-white p-3.5"
       style={CARD_SHADOW}
     >
-      <Text className="text-xs font-bold uppercase tracking-wide text-muted">
-        {t('outstationRide.departs')}
-      </Text>
-      <Text className="mt-1 text-xl font-extrabold text-secondary">
-        {departs ?? '—'}
-      </Text>
-      {lead ? (
-        <Text className="mt-1 text-xs font-semibold text-muted">{lead}</Text>
-      ) : null}
+      <View className="flex-row items-end">
+        <View className="flex-1">
+          <Text className="text-[10px] font-bold uppercase tracking-wide text-muted">
+            {t('outstationRide.departs')}
+          </Text>
+          <Text className="text-base font-extrabold text-secondary">
+            {departs ?? '—'}
+          </Text>
+        </View>
 
-      <Text className="mt-3 border-t border-border pt-3 text-[11px] leading-4 text-muted">
+        {/* Beside the departure rather than under it — two short lines that
+            answer the same question don't need two rows. */}
+        {lead ? (
+          <Text className="ml-2 text-[11px] font-semibold text-muted">
+            {lead}
+          </Text>
+        ) : null}
+      </View>
+
+      <Text className="mt-2 border-t border-border pt-2 text-[10px] leading-4 text-muted">
         {t('outstationRide.departsNote')}
       </Text>
     </View>
   );
 }
 
+/**
+ * Who is being driven, and what the job is.
+ *
+ * The trip's numbers sit under the rider rather than in a card of their own:
+ * distance, time and vehicle class are read once, at a glance, and they were
+ * the small print on a fare card that has been folded into the action bar.
+ */
 function RiderCard({
   ride,
   onCall,
@@ -776,80 +825,59 @@ function RiderCard({
   const rider = ride.bookedBy;
   const initial = rider?.name?.trim().charAt(0).toUpperCase();
 
+  const details = summaryLine([
+    distance(ride.estimatedDistanceKm),
+    duration(ride.estimatedDurationMin),
+    ride.vehicleTypeId?.name,
+  ]);
+
   return (
     <View
-      className="mt-4 flex-row items-center rounded-2xl border border-border bg-white p-4"
+      className="mt-3 rounded-2xl border border-border bg-white p-3"
       style={CARD_SHADOW}
     >
-      {rider?.profileImageUrl ? (
-        <Image
-          source={{ uri: rider.profileImageUrl }}
-          className="h-12 w-12 rounded-full"
-        />
-      ) : (
-        <View className="h-12 w-12 items-center justify-center rounded-full bg-surface">
-          <Text className="text-lg font-extrabold text-secondary">
-            {initial ?? '?'}
+      <View className="flex-row items-center">
+        {rider?.profileImageUrl ? (
+          <Image
+            source={{ uri: rider.profileImageUrl }}
+            className="h-10 w-10 rounded-full"
+          />
+        ) : (
+          <View className="h-10 w-10 items-center justify-center rounded-full bg-surface">
+            <Text className="text-base font-extrabold text-secondary">
+              {initial ?? '?'}
+            </Text>
+          </View>
+        )}
+
+        <View className="ml-2.5 flex-1">
+          <Text className="text-[9px] font-bold uppercase tracking-wide text-muted">
+            {t('ride.rider')}
+          </Text>
+          <Text
+            className="text-[15px] font-bold text-secondary"
+            numberOfLines={1}
+          >
+            {rider?.name ?? t('ride.riderFallback')}
           </Text>
         </View>
-      )}
 
-      <View className="ml-3 flex-1">
-        <Text className="text-xs font-bold uppercase tracking-wide text-muted">
-          {t('ride.rider')}
-        </Text>
-        <Text
-          className="mt-0.5 text-base font-bold text-secondary"
-          numberOfLines={1}
-        >
-          {rider?.name ?? t('ride.riderFallback')}
-        </Text>
+        {rider?.phoneNumber ? (
+          <Pressable
+            onPress={onCall}
+            className="h-10 w-10 items-center justify-center rounded-full active:opacity-80"
+            style={{ backgroundColor: colors.successSurface }}
+          >
+            <MaterialIcons name="call" size={19} color={colors.success} />
+          </Pressable>
+        ) : null}
       </View>
 
-      {rider?.phoneNumber ? (
-        <Pressable
-          onPress={onCall}
-          className="h-11 w-11 items-center justify-center rounded-full active:opacity-80"
-          style={{ backgroundColor: colors.successSurface }}
-        >
-          <MaterialIcons name="call" size={20} color={colors.success} />
-        </Pressable>
+      {details ? (
+        <Text className="mt-2 border-t border-border pt-2 text-[11px] font-semibold text-muted">
+          {details}
+        </Text>
       ) : null}
-    </View>
-  );
-}
-
-/** `finalFare` is what the driver gets paid — never `offeredFare`. */
-function FareCard({ ride }: { ride: OutstationRide }) {
-  const { t } = useTranslation();
-
-  return (
-    <View
-      className="mt-4 flex-row items-center rounded-2xl border border-border bg-white p-4"
-      style={CARD_SHADOW}
-    >
-      <View className="flex-1">
-        <Text className="text-xs font-bold uppercase tracking-wide text-muted">
-          {t('ride.youEarn')}
-        </Text>
-        <Text className="mt-0.5 text-3xl font-extrabold text-secondary">
-          {rupees(ride.finalFare ?? ride.offeredFare)}
-        </Text>
-        <Text className="mt-1 text-xs font-semibold text-muted">
-          {summaryLine([
-            distance(ride.estimatedDistanceKm),
-            duration(ride.estimatedDurationMin),
-            ride.vehicleTypeId?.name,
-          ])}
-        </Text>
-      </View>
-
-      <View
-        className="h-12 w-12 items-center justify-center rounded-full"
-        style={{ backgroundColor: colors.surface }}
-      >
-        <MaterialIcons name="payments" size={22} color={colors.tertiary} />
-      </View>
     </View>
   );
 }
@@ -877,17 +905,17 @@ function OtpPanel({
 
   return (
     <View
-      className="mt-4 rounded-2xl border border-border bg-white p-4"
+      className="mt-3 rounded-2xl border border-border bg-white p-3.5"
       style={CARD_SHADOW}
     >
-      <Text className="text-xs font-bold uppercase tracking-wide text-muted">
+      <Text className="text-[10px] font-bold uppercase tracking-wide text-muted">
         {t('outstationRide.otpTitle')}
       </Text>
-      <Text className="mt-1 text-[13px] leading-5 text-muted">
+      <Text className="mt-0.5 text-[12px] leading-4 text-muted">
         {locked ? t('outstationRide.otpLockedBody') : t('outstationRide.otpBody')}
       </Text>
 
-      <View className="mt-4">
+      <View className="mt-2.5">
         <OtpBoxes
           value={otp}
           onChange={onChange}
@@ -900,17 +928,17 @@ function OtpPanel({
 
       {error ? (
         <View
-          className="mt-4 flex-row items-start rounded-xl px-3.5 py-3"
+          className="mt-2.5 flex-row items-start rounded-xl px-3 py-2"
           style={{ backgroundColor: colors.dangerSurface }}
         >
           <MaterialIcons
             name={locked ? 'lock' : 'error-outline'}
-            size={15}
+            size={14}
             color={colors.danger}
             style={{ marginTop: 1 }}
           />
           <Text
-            className="ml-2 flex-1 text-xs leading-5"
+            className="ml-2 flex-1 text-[11px] leading-4"
             style={{ color: colors.danger }}
           >
             {error}

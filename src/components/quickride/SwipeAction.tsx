@@ -28,6 +28,14 @@ import { colors } from '../../theme/colors';
 
 const TRACK_H = 56;
 const KNOB = 48;
+/**
+ * The same control on an offer card, where it is one of five things stacked in
+ * a box the driver scrolls a list of. Still comfortably past the 44pt minimum —
+ * the full size is kept for the trip screens, where the swipe is the only thing
+ * on screen and gets pulled at a red light.
+ */
+const COMPACT_TRACK_H = 46;
+const COMPACT_KNOB = 38;
 const PAD = 4;
 /** How much of the track has to be crossed for the swipe to count. */
 const COMMIT = 0.75;
@@ -42,6 +50,8 @@ type Props = {
   tone?: string;
   /** Icon in the knob at rest. */
   icon?: string;
+  /** Shorter track and smaller label, for use inside an offer card. */
+  compact?: boolean;
 };
 
 export default function SwipeAction({
@@ -51,7 +61,10 @@ export default function SwipeAction({
   loading = false,
   tone = colors.tertiary,
   icon = 'arrow-forward',
+  compact = false,
 }: Props) {
+  const trackHeight = compact ? COMPACT_TRACK_H : TRACK_H;
+  const knobSize = compact ? COMPACT_KNOB : KNOB;
   const [trackWidth, setTrackWidth] = useState(0);
 
   const x = useRef(new Animated.Value(0)).current;
@@ -64,7 +77,7 @@ export default function SwipeAction({
   const frozenRef = useRef(frozen);
   frozenRef.current = frozen;
 
-  const travel = () => Math.max(widthRef.current - KNOB - PAD * 2, 1);
+  const travel = () => Math.max(widthRef.current - knobSize - PAD * 2, 1);
 
   const settle = () =>
     Animated.spring(x, {
@@ -180,7 +193,12 @@ export default function SwipeAction({
       }}
       style={[
         styles.track,
-        { backgroundColor: tone, opacity: disabled ? 0.5 : 1 },
+        {
+          height: trackHeight,
+          borderRadius: trackHeight / 2,
+          backgroundColor: tone,
+          opacity: disabled ? 0.5 : 1,
+        },
       ]}
       accessibilityRole="button"
       accessibilityState={{ disabled: frozen, busy: loading }}
@@ -196,22 +214,41 @@ export default function SwipeAction({
     >
       <Animated.View
         pointerEvents="none"
-        style={[styles.labelRow, { opacity: labelOpacity }]}
+        // Clear of the parked knob, so the label sits centred in what's left.
+        style={[
+          styles.labelRow,
+          { paddingLeft: knobSize, opacity: labelOpacity },
+        ]}
       >
-        <Text className="text-[15px] font-bold text-white">{label}</Text>
+        <Text
+          className={`${compact ? 'text-[13px]' : 'text-[15px]'} font-bold text-white`}
+          numberOfLines={1}
+        >
+          {label}
+        </Text>
         <MaterialIcons
           name="double-arrow"
-          size={16}
+          size={compact ? 14 : 16}
           color="rgba(255,255,255,0.75)"
           style={styles.chevrons}
         />
       </Animated.View>
 
-      <Animated.View style={[styles.knob, { transform: [{ translateX: x }] }]}>
+      <Animated.View
+        style={[
+          styles.knob,
+          {
+            height: knobSize,
+            width: knobSize,
+            borderRadius: knobSize / 2,
+            transform: [{ translateX: x }],
+          },
+        ]}
+      >
         {loading ? (
           <ActivityIndicator size="small" color={tone} />
         ) : (
-          <MaterialIcons name={icon} size={22} color={tone} />
+          <MaterialIcons name={icon} size={compact ? 19 : 22} color={tone} />
         )}
       </Animated.View>
     </View>
@@ -220,8 +257,6 @@ export default function SwipeAction({
 
 const styles = StyleSheet.create({
   track: {
-    height: TRACK_H,
-    borderRadius: TRACK_H / 2,
     justifyContent: 'center',
     overflow: 'hidden',
   },
@@ -234,8 +269,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    // Clear of the parked knob, so the label sits centred in what's left.
-    paddingLeft: KNOB,
   },
   chevrons: {
     marginLeft: 6,
@@ -243,9 +276,6 @@ const styles = StyleSheet.create({
   knob: {
     position: 'absolute',
     left: PAD,
-    height: KNOB,
-    width: KNOB,
-    borderRadius: KNOB / 2,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.primary,

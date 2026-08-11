@@ -6,6 +6,7 @@ import com.facebook.react.ReactApplication
 import com.facebook.react.ReactHost
 import com.facebook.react.ReactNativeApplicationEntryPoint.loadReactNative
 import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
+import com.xcentic.bhy.appinfo.AppInfoPackage
 import com.xcentic.bhy.duty.AppForeground
 import com.xcentic.bhy.duty.DutyPackage
 import com.xcentic.bhy.permissions.DriverPermissionsPackage
@@ -19,6 +20,7 @@ class MainApplication : Application(), ReactApplication {
         PackageList(this).packages.apply {
           // These live in the app rather than node_modules, so autolinking
           // never sees them.
+          add(AppInfoPackage())
           add(DriverPermissionsPackage())
           add(DutyPackage())
         },

@@ -67,15 +67,15 @@ function Stat({
 }) {
   return (
     <View
-      className={`flex-1 items-center py-3 ${divided ? 'border-l border-border' : ''}`}
+      className={`flex-1 items-center py-2.5 ${divided ? 'border-l border-border' : ''}`}
     >
       <View className="flex-row items-center">
-        <MaterialIcons name={icon} size={13} color={colors.muted} />
-        <Text className="ml-1 text-sm font-extrabold text-secondary">
+        <MaterialIcons name={icon} size={12} color={colors.muted} />
+        <Text className="ml-1 text-[13px] font-extrabold text-secondary">
           {value ?? '—'}
         </Text>
       </View>
-      <Text className="mt-0.5 text-[10px] font-bold uppercase tracking-wide text-muted">
+      <Text className="text-[9px] font-bold uppercase tracking-wide text-muted">
         {label}
       </Text>
     </View>

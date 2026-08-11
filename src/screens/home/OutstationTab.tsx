@@ -31,6 +31,7 @@ import {
   type DepartureFilter,
 } from '../../hooks/useOutstation';
 import type { RootStackParamList } from '../../navigation/types';
+import { setOutstationCount } from '../../services/outstationCount';
 import { colors } from '../../theme/colors';
 import type { OutstationRide } from '../../types/outstation';
 import type { LatLng } from '../../types/quickRide';
@@ -166,6 +167,18 @@ export default function OutstationTab({ token }: Props) {
       handedOver.current = null;
     }
   }, [liveRide]);
+
+  /**
+   * The badge on this tab's own header, which is rendered by `HomeScreen` and
+   * so cannot read the list directly. Cleared on unmount — the tab only goes
+   * away with the whole home screen, and a signed-out driver must not be left
+   * with a count from the last account.
+   */
+  useEffect(() => {
+    setOutstationCount(cards.length);
+  }, [cards.length]);
+
+  useEffect(() => () => setOutstationCount(0), []);
 
   /**
    * Duty can be flipped from either tab, and only the instance that flipped it

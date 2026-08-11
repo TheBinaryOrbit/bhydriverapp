@@ -2,6 +2,7 @@ package com.xcentic.bhy.overlay
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.CountDownTimer
@@ -43,6 +44,14 @@ import java.util.Locale
  * rather than stacking, because two cards means the driver clears one to read
  * the other and the timer runs on both while they do.
  *
+ * It rings and buzzes when it appears — see [RideRingtone]. A card drawn over a
+ * phone in a cradle that nobody is looking at is a request that expires unread.
+ *
+ * Both products draw this card, and the tag in its top-left corner is what says
+ * which. The countdown pill goes with it: QuickRide has seconds and shows them,
+ * an outstation offer runs for hours and shows nothing — the card still removes
+ * itself either way, it just stops claiming that the *trip* is about to go.
+ *
  * @see NativeRideOverlay for the JS-side contract and the payload shape.
  * @see SwipeConfirmView for the gesture.
  */
@@ -62,6 +71,9 @@ class RideOverlayModule(reactContext: ReactApplicationContext) :
 
   private var view: View? = null
   private var timer: CountDownTimer? = null
+
+  /** The ring and buzz the card arrives with; tied to the window's lifetime. */
+  private val ringtone = RideRingtone(reactContext)
 
   /**
    * Held so the card can still report which ride it belonged to after it has
@@ -143,6 +155,8 @@ class RideOverlayModule(reactContext: ReactApplicationContext) :
     val inflated =
         LayoutInflater.from(context).inflate(R.layout.ride_overlay_card, null, false)
 
+    bindTag(inflated.findViewById(R.id.overlay_tag), card)
+
     inflated.findViewById<TextView>(R.id.overlay_fare).text = card.getString("fare").orEmpty()
     inflated.findViewById<TextView>(R.id.overlay_detail).text = card.getString("detail").orEmpty()
     inflated.findViewById<TextView>(R.id.overlay_pickup).text = card.getString("pickup").orEmpty()
@@ -162,12 +176,43 @@ class RideOverlayModule(reactContext: ReactApplicationContext) :
     view = inflated
     showingRideId = rideId
 
+    // After the add, so a window the system refuses never rings for a card the
+    // driver cannot see.
+    ringtone.start()
+
+    // Hidden for a product whose offer outlives this window — the timer below
+    // still runs, because it is what takes the card off the driver's screen.
+    val countdown = inflated.findViewById<TextView>(R.id.overlay_countdown)
+    val ticking = !card.hasKey("showCountdown") || card.getBoolean("showCountdown")
+    countdown.visibility = if (ticking) View.VISIBLE else View.GONE
+
     startCountdown(
-        inflated.findViewById(R.id.overlay_countdown),
+        countdown,
         // A card with no expiry would sit there forever; treat it as already
         // gone rather than as unlimited.
         seconds = card.getDouble("expiresInSeconds").toLong().coerceAtLeast(0),
     )
+  }
+
+  /**
+   * The product chip — "QuickRide" or "Outstation", in the driver's language.
+   *
+   * The colour arrives as a hex string rather than being chosen here: the two
+   * products are told apart by it on every other surface in the app, and a
+   * second copy of the palette in Kotlin is one that drifts. An unparseable one
+   * leaves the drawable's own fill, which is a chip in the wrong colour rather
+   * than a card that fails to draw.
+   */
+  private fun bindTag(tag: TextView, card: ReadableMap) {
+    tag.text = card.getString("tag").orEmpty()
+
+    val fill = card.getString("tagColor")?.let { hex -> runCatching { Color.parseColor(hex) }.getOrNull() }
+    if (fill != null) {
+      // `mutate` first: drawables inflated from the same resource share their
+      // constant state, so tinting one would otherwise recolour every card
+      // drawn afterwards from this process.
+      tag.background?.mutate()?.setTint(fill)
+    }
   }
 
   /* ------------------------------------------------ the fare */
@@ -329,6 +374,10 @@ class RideOverlayModule(reactContext: ReactApplicationContext) :
   private fun tearDown() {
     timer?.cancel()
     timer = null
+
+    // Unconditional: `show` tears down before it draws, so this is also what
+    // stops the first card's ring when a second request replaces it.
+    ringtone.stop()
 
     val current = view ?: return
     view = null

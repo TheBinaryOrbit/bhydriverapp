@@ -35,6 +35,10 @@
          front of them rather than waiting in the notification shade. -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
+    <!-- The same card, for a phone in a cradle the driver is not looking at: it
+         rings and buzzes on arrival. Install-time, no prompt. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
     <!-- Doze, and the far more aggressive OEM battery managers on the phones
          most drivers actually carry, kill the background location ping
          mid-shift. The driver reads that as "the app stopped sending me rides". -->

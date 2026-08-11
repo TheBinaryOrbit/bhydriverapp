@@ -1,15 +1,22 @@
 import { AppState } from 'react-native';
 
 import { driverSocket } from './driverSocket';
+import { placeOutstationBid } from './outstationService';
 import { placeBid } from './quickRideService';
 import {
   hideRideOverlay,
   isRideOverlayShowing,
   onRideOverlayAction,
   openApp,
+  showOutstationOverlay,
   showRideOverlay,
 } from './rideOverlay';
 import { getToken } from '../storage/authStorage';
+import {
+  toOutstationCard,
+  type OutstationCard,
+  type RawOutstationCard,
+} from '../types/outstation';
 import { toRideCard, type RawRideCard, type RideCard } from '../types/quickRide';
 
 /**
@@ -29,21 +36,36 @@ import { toRideCard, type RawRideCard, type RideCard } from '../types/quickRide'
  * `DutyService` starts for a shift with no activity, and the headless one
  * Firebase starts for a data push into a process that had been killed outright.
  *
- * It deliberately owns very little — the offered fare per open ride, and which
- * ride is currently drawn. Everything else about a ride still belongs to
- * `useQuickRide`, which keeps its own cards for the list it renders; the two
- * read the same socket and never write to each other.
+ * **Both products dispatch through here.** An outstation trip reaches a driver
+ * on exactly the same terms — pushed over the socket while they are in another
+ * app — and the reason the card exists is the driver's attention, not the
+ * product's urgency. What the two do not share is where a bid is *sent*, so the
+ * offer cache remembers which one each ride came from and the swipe is routed by
+ * that rather than by guessing from the id.
+ *
+ * It deliberately owns very little — the offer per open ride, and which ride is
+ * currently drawn. Everything else still belongs to `useQuickRide` and
+ * `useOutstation`, which keep their own cards for the lists they render; all
+ * three read the same socket and never write to each other.
  */
 
 /** Registered once per JS context. */
 let started = false;
 
 /**
- * The rides currently open to this driver, by id — the fare cache the `bid`
- * button reads. Small and self-pruning: rides leave on the same events that
- * take the card off screen.
+ * An open offer, and which product's bid endpoint answers it. The fare is
+ * cached for the one case the card cannot supply it — a trip with no usable bid
+ * range, where the slider was never drawn.
  */
-const offers = new Map<string, RideCard>();
+type Offer =
+  | { type: 'quickRide'; card: RideCard }
+  | { type: 'outstation'; card: OutstationCard };
+
+/**
+ * The rides currently open to this driver, by id. Small and self-pruning: rides
+ * leave on the same events that take the card off screen.
+ */
+const offers = new Map<string, Offer>();
 
 /** The ride the overlay is drawn for, or `null` when nothing is up. */
 let showingRideId: string | null = null;
@@ -78,10 +100,17 @@ export function startRideDispatch(): void {
   // that is already running against the ride's real expiry.
   driverSocket.on('ride:fare_updated', payload => {
     const update = toRideCard(payload as RawRideCard);
-    const known = update && offers.get(update.rideId);
-    if (known && typeof update.offeredFare === 'number') {
-      offers.set(update.rideId, { ...known, offeredFare: update.offeredFare });
+    if (!update || typeof update.offeredFare !== 'number') {
+      return;
     }
+    const known = offers.get(update.rideId);
+    if (known?.type !== 'quickRide') {
+      return;
+    }
+    offers.set(update.rideId, {
+      type: 'quickRide',
+      card: { ...known.card, offeredFare: update.offeredFare },
+    });
   });
 
   // Taken by someone else, cancelled by the rider, or timed out. All three leave
@@ -91,10 +120,54 @@ export function startRideDispatch(): void {
   driverSocket.on('ride:expired', ({ rideId }) => forget(rideId));
 
   // Won one. Every other card is dead at once, including any still on screen
-  // over another app.
+  // over another app — a driver on a QuickRide can't take outstation work
+  // either, so the whole cache goes rather than just this product's half.
   driverSocket.on('bid:accepted', () => {
     offers.clear();
     dropCard();
+  });
+
+  /* ---------------------------------------------- outstation */
+
+  driverSocket.on('outstation:request', raw => {
+    offerTrip(raw);
+  });
+
+  // Same rule as QuickRide's: the fare moves, the card does not get redrawn.
+  driverSocket.on('outstation:fare_updated', payload => {
+    const update = toOutstationCard(payload as RawOutstationCard);
+    if (!update || typeof update.offeredFare !== 'number') {
+      return;
+    }
+    const known = offers.get(update.rideId);
+    if (known?.type !== 'outstation') {
+      return;
+    }
+    offers.set(update.rideId, {
+      type: 'outstation',
+      card: { ...known.card, offeredFare: update.offeredFare },
+    });
+  });
+
+  driverSocket.on('outstation:ride_taken', ({ rideId }) => forget(rideId));
+  driverSocket.on('outstation:ride_cancelled', ({ rideId }) => forget(rideId));
+  driverSocket.on('outstation:ride_expired', ({ rideId }) => forget(rideId));
+
+  /**
+   * The trip is theirs, and every other outstation bid they held was deleted
+   * server-side — so those offers go, and the window with them if it was one.
+   *
+   * Only this product's, unlike `bid:accepted` above. An accepted trip can be
+   * thirty days out and the driver is expected to keep taking QuickRides until
+   * two hours before it; tearing down a QuickRide card they are mid-swipe on
+   * would cost them a ride they are still perfectly free to take.
+   */
+  driverSocket.on('outstation:bid_accepted', () => {
+    offers.forEach((offered, rideId) => {
+      if (offered.type === 'outstation') {
+        forget(rideId);
+      }
+    });
   });
 
   onRideOverlayAction(({ action, rideId, fare }) => {
@@ -206,7 +279,7 @@ async function offer(
   if (!card) {
     return;
   }
-  offers.set(card.rideId, card);
+  offers.set(card.rideId, { type: 'quickRide', card });
 
   const shown = await showRideOverlay(card);
   if (!shown) {
@@ -228,15 +301,46 @@ async function offer(
 }
 
 /**
- * Bids at the fare the driver swiped on.
+ * The outstation half of [offer]. Same shape, different card type — and
+ * `showOutstationOverlay` is the one that knows this product's card has no
+ * countdown on it.
+ *
+ * There is no `hold` here: an outstation trip only ever arrives over the socket,
+ * which means a shift is already holding this runtime open. Nothing has to be
+ * kept alive by hand the way a pushed QuickRide does.
+ */
+async function offerTrip(raw: RawOutstationCard): Promise<void> {
+  const card = toOutstationCard(raw);
+  if (!card) {
+    return;
+  }
+  offers.set(card.rideId, { type: 'outstation', card });
+
+  if (await showOutstationOverlay(card)) {
+    showingRideId = card.rideId;
+  }
+}
+
+/**
+ * Bids at the fare the driver swiped on, at whichever product this ride is.
  *
  * `swiped` comes off the card's own slider and is authoritative — re-deriving it
  * from `offeredFare` here would quietly discard the number the driver actually
  * chose. The cached offer is only a fallback for a card that had no usable range
  * to draw, where the slider was hidden and the offer is all there ever was.
+ *
+ * A ride the cache has forgotten is not bid on at all. The two endpoints take
+ * the same arguments and would both accept this id, so guessing would mean
+ * posting an outstation trip to `/quick-rides` — a `404` at best, and at worst a
+ * bid the driver never sees again on the wrong product.
  */
 async function bid(rideId: string, swiped: number): Promise<void> {
-  const fare = swiped > 0 ? swiped : offers.get(rideId)?.offeredFare;
+  const offered = offers.get(rideId);
+  if (!offered) {
+    return;
+  }
+
+  const fare = swiped > 0 ? swiped : offered.card.offeredFare;
   if (typeof fare !== 'number' || fare <= 0) {
     return;
   }
@@ -246,7 +350,11 @@ async function bid(rideId: string, swiped: number): Promise<void> {
   }
 
   try {
-    await placeBid(token, rideId, fare);
+    if (offered.type === 'outstation') {
+      await placeOutstationBid(token, rideId, fare);
+    } else {
+      await placeBid(token, rideId, fare);
+    }
   } catch (error) {
     // Swallowed on purpose. The card is gone by now and the driver is in another
     // app entirely, so there is no surface to report on; the ride stays unbid,
@@ -259,11 +367,19 @@ async function bid(rideId: string, swiped: number): Promise<void> {
     return;
   }
 
-  // The bid landed. Bring the driver back to the app: they have just committed
-  // money on a ride they may be assigned in seconds, and a card that simply
-  // vanished is indistinguishable from one that failed. The tab they land on
-  // refreshes from `/live` on the way in, so the bid is on screen when they get
-  // there.
+  // An outstation bid stops here. It stands until the rider chooses — possibly
+  // for days, on a trip departing next month — so there is nothing waiting in
+  // the app worth pulling a driver out of their navigation for. They find it on
+  // the Outstation tab whenever they next open it.
+  if (offered.type === 'outstation') {
+    return;
+  }
+
+  // A QuickRide bid does not: bring the driver back to the app, because they
+  // have just committed money on a ride they may be assigned in seconds, and a
+  // card that simply vanished is indistinguishable from one that failed. The tab
+  // they land on refreshes from `/live` on the way in, so the bid is on screen
+  // when they get there.
   openApp();
 }
 

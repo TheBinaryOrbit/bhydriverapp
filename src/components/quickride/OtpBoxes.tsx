@@ -52,7 +52,7 @@ export default function OtpBoxes({
         return (
           <View
             key={index}
-            className="mx-1.5 h-16 w-14 items-center justify-center rounded-2xl border"
+            className="mx-1.5 h-12 w-11 items-center justify-center rounded-xl border"
             style={{
               borderColor: invalid
                 ? colors.danger
@@ -63,7 +63,7 @@ export default function OtpBoxes({
               backgroundColor: disabled ? colors.surface : colors.primary,
             }}
           >
-            <Text className="text-2xl font-extrabold text-secondary">
+            <Text className="text-xl font-extrabold text-secondary">
               {digit ?? ''}
             </Text>
           </View>

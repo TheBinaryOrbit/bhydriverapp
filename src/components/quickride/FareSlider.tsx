@@ -155,8 +155,8 @@ export default function FareSlider({
           disabled={disabled || value <= min}
         />
 
-        <View className="mx-4 flex-1 items-center">
-          <Text className="text-3xl font-extrabold text-secondary">
+        <View className="mx-3 flex-1 items-center">
+          <Text className="text-2xl font-extrabold text-secondary">
             {rupees(value)}
           </Text>
         </View>
@@ -169,7 +169,7 @@ export default function FareSlider({
       </View>
 
       <View
-        className="mt-5 justify-center"
+        className="mt-3.5 justify-center"
         style={styles.hitArea}
         onLayout={event => {
           const next = event.nativeEvent.layout.width;
@@ -178,7 +178,7 @@ export default function FareSlider({
         }}
         {...responder.panHandlers}
       >
-        <View className="h-2 rounded-full bg-border" />
+        <View className="h-1.5 rounded-full bg-border" />
 
         <LinearGradient
           colors={navyGradient}
@@ -191,15 +191,19 @@ export default function FareSlider({
           style={[
             styles.knob,
             // Half the knob, so its centre tracks the value rather than its edge.
-            { left: Math.max(filled - 14, 0) },
+            { left: Math.max(filled - 12, 0) },
             disabled ? styles.knobDisabled : null,
           ]}
         />
       </View>
 
-      <View className="mt-3 flex-row justify-between">
-        <Text className="text-xs font-semibold text-muted">{rupees(min)}</Text>
-        <Text className="text-xs font-semibold text-muted">{rupees(max)}</Text>
+      <View className="mt-2 flex-row justify-between">
+        <Text className="text-[11px] font-semibold text-muted">
+          {rupees(min)}
+        </Text>
+        <Text className="text-[11px] font-semibold text-muted">
+          {rupees(max)}
+        </Text>
       </View>
     </View>
   );
@@ -219,11 +223,11 @@ function StepButton({
       onPress={onPress}
       disabled={disabled}
       hitSlop={8}
-      className={`h-11 w-11 items-center justify-center rounded-full border border-border ${
+      className={`h-9 w-9 items-center justify-center rounded-full border border-border ${
         disabled ? 'opacity-40' : 'active:bg-surface'
       }`}
     >
-      <MaterialIcons name={icon} size={22} color={colors.secondary} />
+      <MaterialIcons name={icon} size={20} color={colors.secondary} />
     </Pressable>
   );
 }
@@ -231,18 +235,18 @@ function StepButton({
 const styles = StyleSheet.create({
   /** Taller than the track so the thumb is comfortable to grab. */
   hitArea: {
-    height: 36,
+    height: 30,
   },
   fill: {
     position: 'absolute',
-    height: 8,
-    borderRadius: 4,
+    height: 6,
+    borderRadius: 3,
   },
   knob: {
     position: 'absolute',
-    height: 28,
-    width: 28,
-    borderRadius: 14,
+    height: 24,
+    width: 24,
+    borderRadius: 12,
     backgroundColor: colors.primary,
     borderWidth: 3,
     borderColor: colors.tertiary,

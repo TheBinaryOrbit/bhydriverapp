@@ -51,6 +51,13 @@ type Props = NativeStackScreenProps<RootStackParamList, 'RideDetails'>;
 const OTP_LENGTH = 4;
 
 /**
+ * Shorter than the map's own default, because everything under it has to fit
+ * on the same screen. Still enough to see which way the leg runs, which is all
+ * this map is for — the turn-by-turn is a button away.
+ */
+const MAP_HEIGHT = 150;
+
+/**
  * The live ride — see §6–9 of `docs/driver-quick-ride.md`.
  *
  * The screen renders **one destination at a time**, driven entirely by
@@ -335,8 +342,13 @@ export default function RideDetailsScreen({ navigation, route }: Props) {
         }
       />
 
+      {/* Sized to land inside one screen without scrolling on an ordinary
+          phone: a shorter map, one card per subject, and the fare moved out of
+          a card of its own and onto the action bar. The `ScrollView` stays as
+          the safety net for small screens and large font settings — it is not
+          meant to be used on most phones. */}
       <ScrollView
-        contentContainerStyle={{ padding: 20, paddingBottom: 24 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 16 }}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
@@ -344,6 +356,7 @@ export default function RideDetailsScreen({ navigation, route }: Props) {
             drop. Same rule as the address card below — one destination at a
             time, the one the driver is actually going to. */}
         <RoutePreviewMap
+          height={MAP_HEIGHT}
           from={driverAt}
           to={toLatLng(
             phase === 'pickup' ? ride.pickupCoordinates : ride.dropCoordinates,
@@ -366,23 +379,24 @@ export default function RideDetailsScreen({ navigation, route }: Props) {
           />
         ) : null}
 
-        {/* Then the rider, and the call button that goes with them. */}
+        {/* Then the rider, the call button that goes with them, and the trip's
+            own numbers underneath — those used to be the small print on a fare
+            card that no longer exists. */}
         <RiderCard ride={ride} onCall={handleCall} />
-
-        <FareCard ride={ride} />
 
         {/* Both ends, and a way to drive to either, whatever stage the ride is
             at. The driver plans the whole job from this one card rather than
             being shown one leg at a time. */}
         <View
-          className="mt-4 rounded-2xl border border-border bg-white p-4"
+          className="mt-3 rounded-2xl border border-border bg-white p-3.5"
           style={CARD_SHADOW}
         >
-          <Text className="mb-3 text-xs font-bold uppercase tracking-wide text-muted">
+          <Text className="mb-2 text-[10px] font-bold uppercase tracking-wide text-muted">
             {t('ride.route')}
           </Text>
 
           <RouteLine
+            compact
             pickup={ride.pickupLocationName}
             drop={ride.dropLocationName}
             emphasis={phase}
@@ -395,7 +409,7 @@ export default function RideDetailsScreen({ navigation, route }: Props) {
               A tap, not a swipe: opening directions is reversible, and it is
               the control the driver reaches for most often — sometimes while
               already moving. Nothing here needs protecting from a stray touch. */}
-          <View className="mt-4">
+          <View className="mt-3">
             <NavigateButton
               label={
                 phase === 'pickup' ? t('ride.goToPickup') : t('ride.goToDrop')
@@ -406,26 +420,48 @@ export default function RideDetailsScreen({ navigation, route }: Props) {
         </View>
       </ScrollView>
 
+      {/* The action bar: what this ride pays, and the swipe that moves it on.
+          The fare sits beside the swipe rather than in a card of its own —
+          it is a number the driver checks, not one they act on, and it was
+          costing a whole card's height in the middle of the screen. */}
       <View
-        className="border-t border-border bg-white px-5 pt-4"
-        style={{ paddingBottom: insets.bottom + 12 }}
+        className="flex-row items-center border-t border-border bg-white px-4 pt-2.5"
+        style={{ paddingBottom: insets.bottom + 8 }}
       >
-        {status === 'assigned' ? (
-          <SwipeAction
-            label={t('ride.startRide')}
-            icon="play-arrow"
-            loading={starting}
-            disabled={locked || otp.length < OTP_LENGTH}
-            onConfirm={() => handleStart(otp)}
-          />
-        ) : (
-          <SwipeAction
-            label={t('ride.completeRide')}
-            icon="check-circle"
-            loading={completing}
-            onConfirm={handleComplete}
-          />
-        )}
+        {/* Capped: the swipe next to it needs a track long enough to be worth
+            swiping, and a five-figure fare would otherwise eat into it. */}
+        <View className="mr-3 max-w-[104px]">
+          <Text className="text-[9px] font-bold uppercase tracking-wide text-muted">
+            {t('ride.youEarn')}
+          </Text>
+          <Text
+            className="text-[19px] font-extrabold leading-6 text-secondary"
+            numberOfLines={1}
+          >
+            {rupees(ride.finalFare ?? ride.offeredFare)}
+          </Text>
+        </View>
+
+        <View className="flex-1">
+          {status === 'assigned' ? (
+            <SwipeAction
+              compact
+              label={t('ride.startRide')}
+              icon="play-arrow"
+              loading={starting}
+              disabled={locked || otp.length < OTP_LENGTH}
+              onConfirm={() => handleStart(otp)}
+            />
+          ) : (
+            <SwipeAction
+              compact
+              label={t('ride.completeRide')}
+              icon="check-circle"
+              loading={completing}
+              onConfirm={handleComplete}
+            />
+          )}
+        </View>
       </View>
     </KeyboardSafeView>
   );
@@ -446,94 +482,77 @@ function NavigateButton({
   return (
     <Pressable
       onPress={onPress}
-      className="flex-row items-center justify-center rounded-xl border py-3.5 active:opacity-70"
+      className="flex-row items-center justify-center rounded-xl border py-2.5 active:opacity-70"
       style={{ borderColor: colors.secondary }}
     >
-      <MaterialIcons name="navigation" size={18} color={colors.secondary} />
-      <Text className="ml-2 text-sm font-bold text-secondary">{label}</Text>
+      <MaterialIcons name="navigation" size={16} color={colors.secondary} />
+      <Text className="ml-2 text-[13px] font-bold text-secondary">{label}</Text>
     </Pressable>
   );
 }
 
+/**
+ * Who is being driven, and what the job is.
+ *
+ * The trip's numbers sit under the rider rather than in a card of their own:
+ * distance, time and vehicle class are read once, at a glance, and they were
+ * the small print on a fare card that has been folded into the action bar.
+ */
 function RiderCard({ ride, onCall }: { ride: QuickRide; onCall: () => void }) {
   const { t } = useTranslation();
   const rider = ride.bookedBy;
   const initial = rider?.name?.trim().charAt(0).toUpperCase();
 
+  const details = summaryLine([
+    distance(ride.estimatedDistanceKm),
+    duration(ride.estimatedDurationMin),
+    ride.vehicleTypeId?.name,
+  ]);
+
   return (
     <View
-      className="mt-4 flex-row items-center rounded-2xl border border-border bg-white p-4"
+      className="mt-3 rounded-2xl border border-border bg-white p-3"
       style={CARD_SHADOW}
     >
-      {rider?.profileImageUrl ? (
-        <Image
-          source={{ uri: rider.profileImageUrl }}
-          className="h-12 w-12 rounded-full"
-        />
-      ) : (
-        <View className="h-12 w-12 items-center justify-center rounded-full bg-surface">
-          <Text className="text-lg font-extrabold text-secondary">
-            {initial ?? '?'}
+      <View className="flex-row items-center">
+        {rider?.profileImageUrl ? (
+          <Image
+            source={{ uri: rider.profileImageUrl }}
+            className="h-10 w-10 rounded-full"
+          />
+        ) : (
+          <View className="h-10 w-10 items-center justify-center rounded-full bg-surface">
+            <Text className="text-base font-extrabold text-secondary">
+              {initial ?? '?'}
+            </Text>
+          </View>
+        )}
+
+        <View className="ml-2.5 flex-1">
+          <Text className="text-[9px] font-bold uppercase tracking-wide text-muted">
+            {t('ride.rider')}
+          </Text>
+          <Text className="text-[15px] font-bold text-secondary" numberOfLines={1}>
+            {rider?.name ?? t('ride.riderFallback')}
           </Text>
         </View>
-      )}
 
-      <View className="ml-3 flex-1">
-        <Text className="text-xs font-bold uppercase tracking-wide text-muted">
-          {t('ride.rider')}
-        </Text>
-        <Text
-          className="mt-0.5 text-base font-bold text-secondary"
-          numberOfLines={1}
-        >
-          {rider?.name ?? t('ride.riderFallback')}
-        </Text>
+        {rider?.phoneNumber ? (
+          <Pressable
+            onPress={onCall}
+            className="h-10 w-10 items-center justify-center rounded-full active:opacity-80"
+            style={{ backgroundColor: colors.successSurface }}
+          >
+            <MaterialIcons name="call" size={19} color={colors.success} />
+          </Pressable>
+        ) : null}
       </View>
 
-      {rider?.phoneNumber ? (
-        <Pressable
-          onPress={onCall}
-          className="h-11 w-11 items-center justify-center rounded-full active:opacity-80"
-          style={{ backgroundColor: colors.successSurface }}
-        >
-          <MaterialIcons name="call" size={20} color={colors.success} />
-        </Pressable>
+      {details ? (
+        <Text className="mt-2 border-t border-border pt-2 text-[11px] font-semibold text-muted">
+          {details}
+        </Text>
       ) : null}
-    </View>
-  );
-}
-
-/** `finalFare` is what the driver gets paid — never `offeredFare`. */
-function FareCard({ ride }: { ride: QuickRide }) {
-  const { t } = useTranslation();
-
-  return (
-    <View
-      className="mt-4 flex-row items-center rounded-2xl border border-border bg-white p-4"
-      style={CARD_SHADOW}
-    >
-      <View className="flex-1">
-        <Text className="text-xs font-bold uppercase tracking-wide text-muted">
-          {t('ride.youEarn')}
-        </Text>
-        <Text className="mt-0.5 text-3xl font-extrabold text-secondary">
-          {rupees(ride.finalFare ?? ride.offeredFare)}
-        </Text>
-        <Text className="mt-1 text-xs font-semibold text-muted">
-          {summaryLine([
-            distance(ride.estimatedDistanceKm),
-            duration(ride.estimatedDurationMin),
-            ride.vehicleTypeId?.name,
-          ])}
-        </Text>
-      </View>
-
-      <View
-        className="h-12 w-12 items-center justify-center rounded-full"
-        style={{ backgroundColor: colors.surface }}
-      >
-        <MaterialIcons name="payments" size={22} color={colors.tertiary} />
-      </View>
     </View>
   );
 }
@@ -561,17 +580,17 @@ function OtpPanel({
 
   return (
     <View
-      className="mt-4 rounded-2xl border border-border bg-white p-4"
+      className="mt-3 rounded-2xl border border-border bg-white p-3.5"
       style={CARD_SHADOW}
     >
-      <Text className="text-xs font-bold uppercase tracking-wide text-muted">
+      <Text className="text-[10px] font-bold uppercase tracking-wide text-muted">
         {t('ride.otpTitle')}
       </Text>
-      <Text className="mt-1 text-[13px] leading-5 text-muted">
+      <Text className="mt-0.5 text-[12px] leading-4 text-muted">
         {locked ? t('ride.otpLockedBody') : t('ride.otpBody')}
       </Text>
 
-      <View className="mt-4">
+      <View className="mt-2.5">
         <OtpBoxes
           value={otp}
           onChange={onChange}
@@ -584,17 +603,17 @@ function OtpPanel({
 
       {error ? (
         <View
-          className="mt-4 flex-row items-start rounded-xl px-3.5 py-3"
+          className="mt-2.5 flex-row items-start rounded-xl px-3 py-2"
           style={{ backgroundColor: colors.dangerSurface }}
         >
           <MaterialIcons
             name={locked ? 'lock' : 'error-outline'}
-            size={15}
+            size={14}
             color={colors.danger}
             style={{ marginTop: 1 }}
           />
           <Text
-            className="ml-2 flex-1 text-xs leading-5"
+            className="ml-2 flex-1 text-[11px] leading-4"
             style={{ color: colors.danger }}
           >
             {error}

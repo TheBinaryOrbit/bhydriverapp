@@ -315,6 +315,9 @@ export default function EditVehicleScreen({ navigation }: Props) {
               ]
                 .filter(Boolean)
                 .join(' · '),
+              // Same row as onboarding's, artwork included — this screen edits
+              // the vehicle that step created.
+              iconUrl: type.icon,
               icon: 'directions-car',
             }))}
           />
@@ -351,7 +354,7 @@ export default function EditVehicleScreen({ navigation }: Props) {
           />
 
           <View className="flex-row gap-3">
-            <FormField
+            {/* <FormField
               className="flex-1"
               label={t('onboarding.vehicle.seating')}
               value={values.seatingCapacity}
@@ -362,7 +365,7 @@ export default function EditVehicleScreen({ navigation }: Props) {
               keyboardType="number-pad"
               maxLength={2}
               error={errors.seatingCapacity}
-            />
+            /> */}
             <FormField
               className="flex-1"
               label={t('onboarding.vehicle.year')}

@@ -95,9 +95,7 @@ export default function RideSuccessScreen({ navigation, route }: Props) {
         <Text className="mt-6 text-2xl font-extrabold text-secondary">
           {t('rideSuccess.title')}
         </Text>
-        <Text className="mt-2 text-center text-[13px] leading-5 text-muted">
-          {t('rideSuccess.body')}
-        </Text>
+
 
         <View
           className="mt-8 w-full items-center rounded-2xl border border-border bg-white px-6 py-6"
@@ -106,7 +104,7 @@ export default function RideSuccessScreen({ navigation, route }: Props) {
           <Text className="text-xs font-bold uppercase tracking-wide text-muted">
             {t('rideSuccess.earned')}
           </Text>
-          <Text className="mt-1 text-[40px] font-extrabold leading-[46px] text-secondary">
+          <Text className="mt-1 text-[36px] font-extrabold leading-[46px] text-secondary">
             {rupees(finalFare)}
           </Text>
 
@@ -122,12 +120,6 @@ export default function RideSuccessScreen({ navigation, route }: Props) {
                 {dropLocationName}
               </Text>
             </View>
-          ) : null}
-
-          {completedAt ? (
-            <Text className="mt-3 text-xs text-muted">
-              {t('rideSuccess.at', { time: formatTime(completedAt) })}
-            </Text>
           ) : null}
         </View>
 

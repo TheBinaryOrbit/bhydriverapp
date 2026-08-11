@@ -40,6 +40,12 @@ export const API = {
     /** Driver-app content pages; append `/:idOrSlug` for a single page. */
     appContent: '/app-content/driver',
     /**
+     * Boot configuration — the store build, the onboarding video, the home
+     * notice. Append `/android` or `/ios`; see `docs/app-settings.md`. No token:
+     * the update gate has to be able to fire on a phone nobody has signed into.
+     */
+    settings: '/settings',
+    /**
      * Reviews riders left for a driver. Append `/:driverId`, and page with
      * `?limit&skip`. Public shape — it is the same call a rider makes to read a
      * driver's profile, so it carries the driver summary alongside the list.

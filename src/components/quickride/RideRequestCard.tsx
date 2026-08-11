@@ -86,7 +86,7 @@ export default function RideRequestCard({
 
   return (
     <View
-      className={`mb-4 rounded-2xl border border-border bg-white p-4 ${
+      className={`mb-3 rounded-2xl border border-border bg-white p-3.5 ${
         expired ? 'opacity-60' : ''
       }`}
       style={CARD_SHADOW}
@@ -95,10 +95,10 @@ export default function RideRequestCard({
           stat row below, where all three sit together. */}
       <View className="flex-row items-center justify-between">
         <View className="flex-row items-end">
-          <Text className="text-[34px] font-extrabold leading-[38px] text-secondary">
+          <Text className="text-[27px] font-extrabold leading-[30px] text-secondary">
             {rupees(card.offeredFare)}
           </Text>
-          <Text className="mb-1.5 ml-2 text-xs font-semibold text-muted">
+          <Text className="mb-1 ml-1.5 text-[11px] font-semibold text-muted">
             {t('quickRide.riderOffers')}
           </Text>
         </View>
@@ -107,11 +107,11 @@ export default function RideRequestCard({
           <View className="flex-row items-center">
             <MaterialIcons
               name="schedule"
-              size={14}
+              size={13}
               color={remaining <= 15 ? colors.danger : colors.muted}
             />
             <Text
-              className="ml-1 text-xs font-bold"
+              className="ml-1 text-[11px] font-bold"
               style={{ color: remaining <= 15 ? colors.danger : colors.muted }}
             >
               {formatCountdown(remaining)}
@@ -121,13 +121,14 @@ export default function RideRequestCard({
       </View>
 
       {hint ? (
-        <Text className="mt-0.5 text-[11px] font-semibold text-muted">
+        <Text className="mt-0.5 text-[10px] font-semibold text-muted">
           {hint}
         </Text>
       ) : null}
 
-      <View className="mt-4">
+      <View className="mt-3">
         <RouteLine
+          compact
           pickup={card.pickupLocationName}
           drop={card.dropLocationName}
         />
@@ -135,7 +136,7 @@ export default function RideRequestCard({
 
       {/* The three numbers that decide whether this ride is worth taking, out
           of the prose and into a row that can be read at a glance. */}
-      <View className="mt-4">
+      <View className="mt-3">
         <TripStats
           toPickup={away}
           tripDistance={distance(card.estimatedDistanceKm)}
@@ -143,7 +144,7 @@ export default function RideRequestCard({
         />
       </View>
 
-      <View className="mt-4 border-t border-border pt-3">
+      <View className="mt-3 border-t border-border pt-2.5">
         {bid ? (
           <>
             <BidSummary
@@ -159,7 +160,7 @@ export default function RideRequestCard({
             />
 
             {editing ? (
-              <View className="mt-4">
+              <View className="mt-3">
                 <BidControl
                   rideId={card.rideId}
                   bounds={card.bidBounds}
@@ -192,7 +193,7 @@ export default function RideRequestCard({
         {/* Say why the swipe is dead — a greyed control with no reason reads
             as a bug to the driver. */}
         {blocked ? (
-          <Text className="mt-2 text-center text-[11px] font-semibold text-muted">
+          <Text className="mt-2 text-center text-[10px] font-semibold text-muted">
             {t('quickRide.bidLocked')}
           </Text>
         ) : null}
@@ -229,16 +230,16 @@ function BidSummary({
     <View>
       <View className="flex-row items-center justify-between">
         <View>
-          <Text className="text-[11px] font-bold uppercase tracking-wide text-muted">
+          <Text className="text-[10px] font-bold uppercase tracking-wide text-muted">
             {t('quickRide.yourBid')}
           </Text>
-          <Text className="mt-0.5 text-lg font-extrabold text-secondary">
+          <Text className="text-base font-extrabold text-secondary">
             {rupees(bid.fare)}
           </Text>
         </View>
 
         <View
-          className="flex-row items-center rounded-full px-3 py-1.5"
+          className="flex-row items-center rounded-full px-2.5 py-1"
           style={{
             backgroundColor: expired
               ? colors.dangerSurface
@@ -247,11 +248,11 @@ function BidSummary({
         >
           <MaterialIcons
             name={expired ? 'timer-off' : 'hourglass-top'}
-            size={13}
+            size={12}
             color={expired ? colors.danger : colors.warning}
           />
           <Text
-            className="ml-1.5 text-xs font-bold"
+            className="ml-1.5 text-[11px] font-bold"
             style={{ color: expired ? colors.danger : colors.warning }}
           >
             {expired
@@ -265,15 +266,15 @@ function BidSummary({
         </View>
       </View>
 
-      <View className="mt-3 flex-row">
+      <View className="mt-2.5 flex-row">
         <Pressable
           onPress={editing ? onCancelEdit : onEdit}
           disabled={busy || blocked}
-          className={`flex-1 items-center rounded-xl border border-border py-3 ${
+          className={`flex-1 items-center rounded-xl border border-border py-2.5 ${
             expired ? '' : 'mr-2'
           } ${busy || blocked ? 'opacity-50' : 'active:bg-surface'}`}
         >
-          <Text className="text-sm font-bold text-secondary">
+          <Text className="text-[13px] font-bold text-secondary">
             {/* A bid can only ever be lowered, never walked back up. */}
             {editing
               ? t('common.cancel')
@@ -289,13 +290,13 @@ function BidSummary({
           <Pressable
             onPress={onWithdraw}
             disabled={busy}
-            className={`flex-1 items-center rounded-xl border py-3 ${
+            className={`flex-1 items-center rounded-xl border py-2.5 ${
               busy ? 'opacity-50' : 'active:opacity-70'
             }`}
             style={{ borderColor: colors.danger }}
           >
             <Text
-              className="text-sm font-bold"
+              className="text-[13px] font-bold"
               style={{ color: colors.danger }}
             >
               {t('quickRide.withdraw')}

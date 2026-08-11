@@ -19,6 +19,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useTranslation } from 'react-i18next';
 
+import HomeNoticeCard from '../../components/home/HomeNoticeCard';
 import BusyNote from '../../components/outstation/BusyNote';
 import DutyPanel, { DutyBlockNote } from '../../components/quickride/DutyPanel';
 import PermissionGateSheet from '../../components/quickride/PermissionGateSheet';
@@ -34,14 +35,23 @@ import { notify } from '../../utils/notify';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
-type Props = { token: string | null };
+type Props = {
+  token: string | null;
+  /**
+   * The admin's home notice as raw HTML, or `null`/absent when there is none.
+   * Read once by the home screen and handed down rather than fetched here —
+   * `useAppSettings` reloads on every foreground, and two copies of it would
+   * mean two calls per foreground for one piece of text.
+   */
+  notice?: string | null;
+};
 
 /**
  * The QuickRide home tab — going online, the live ride cards, and bidding.
  * Implements `docs/driver-quick-ride.md` §0–4; §5 onwards lives on the ride
  * details screen this hands off to.
  */
-export default function QuickRideTab({ token }: Props) {
+export default function QuickRideTab({ token, notice }: Props) {
   const { t } = useTranslation();
   const navigation = useNavigation<Nav>();
 
@@ -337,7 +347,9 @@ export default function QuickRideTab({ token }: Props) {
           />
         )}
         ListEmptyComponent={
-          busy ? null : <EmptyState onDuty={onDuty} link={link} />
+          busy ? null : (
+            <EmptyState onDuty={onDuty} link={link} notice={notice} />
+          )
         }
       />
 
@@ -354,9 +366,24 @@ export default function QuickRideTab({ token }: Props) {
 }
 
 /** Offline, or online with nothing in range yet — two different messages. */
-function EmptyState({ onDuty, link }: { onDuty: boolean; link: string }) {
+function EmptyState({
+  onDuty,
+  link,
+  notice,
+}: {
+  onDuty: boolean;
+  link: string;
+  notice?: string | null;
+}) {
   const { t } = useTranslation();
   const waiting = onDuty && link !== 'disconnected';
+
+  // Offline, with something to say: the admin's notice takes the panel rather
+  // than a power icon repeating what the switch above it already shows. Online
+  // it never appears — that space is the searching state.
+  if (!waiting && notice) {
+    return <HomeNoticeCard html={notice} />;
+  }
 
   return (
     <View className="flex-1 items-center justify-center px-6 py-16">

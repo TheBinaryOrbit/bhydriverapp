@@ -1,5 +1,5 @@
-import React from 'react';
-import { Pressable, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { Image, Pressable, Text, View } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
@@ -12,6 +12,13 @@ export type Option = {
   icon?: string;
   /** Icon family for the option icon. */
   iconSet?: 'material' | 'community';
+  /**
+   * Artwork to show in place of [icon] — a vehicle type ships its own picture
+   * of the car, and one glyph repeated down the list tells the driver nothing
+   * about which row is the hatchback. [icon] stays the fallback for a URL that
+   * is missing or will not load.
+   */
+  iconUrl?: string;
   /** Optional second line (e.g. a vehicle type's description). */
   caption?: string;
 };
@@ -64,10 +71,6 @@ export default function OptionSelector({
       <View className={stacked ? 'gap-2' : 'flex-row flex-wrap gap-2'}>
         {(shown.length > 0 ? shown : options).map(option => {
           const selected = option.value === value;
-          const IconComponent =
-            option.iconSet === 'community'
-              ? MaterialCommunityIcons
-              : MaterialIcons;
           return (
             <Pressable
               key={option.value}
@@ -90,20 +93,11 @@ export default function OptionSelector({
                   selected && !locked ? '#eaf2f8' : colors.surface,
               }}
             >
-              {option.icon ? (
-                <IconComponent
-                  name={option.icon}
-                  size={18}
-                  color={
-                    locked
-                      ? colors.muted
-                      : selected
-                        ? colors.secondary
-                        : colors.muted
-                  }
-                  style={{ marginRight: 8, flexShrink: 0 }}
-                />
-              ) : null}
+              <OptionIcon
+                option={option}
+                tint={locked || !selected ? colors.muted : colors.secondary}
+                dimmed={locked}
+              />
 
               <View style={{ flexShrink: 1, minWidth: 0 }}>
                 <Text
@@ -148,3 +142,62 @@ export default function OptionSelector({
     </View>
   );
 }
+
+/** The artwork on a row: the option's own image, or its glyph. */
+function OptionIcon({
+  option,
+  tint,
+  dimmed,
+}: {
+  option: Option;
+  tint: string;
+  dimmed: boolean;
+}) {
+  // A broken URL is the case worth handling: these come off the server, and a
+  // row that renders as a blank gap is worse than the glyph the list used to
+  // show. Reset when the URL changes so a re-render can't strand a good image
+  // behind a failure that belonged to a different one.
+  const [failed, setFailed] = useState<string | null>(null);
+  const url = option.iconUrl?.trim();
+
+  if (url && failed !== url) {
+    return (
+      <Image
+        source={{ uri: url }}
+        // Contained rather than cropped: the icons are drawings of cars on
+        // transparent backgrounds, in whatever aspect ratio they were drawn.
+        resizeMode="contain"
+        onError={() => setFailed(url)}
+        style={{
+          width: ICON_IMAGE,
+          height: ICON_IMAGE,
+          marginRight: 10,
+          flexShrink: 0,
+          opacity: dimmed ? 0.5 : 1,
+        }}
+      />
+    );
+  }
+
+  if (!option.icon) {
+    return null;
+  }
+
+  const Glyph =
+    option.iconSet === 'community' ? MaterialCommunityIcons : MaterialIcons;
+  return (
+    <Glyph
+      name={option.icon}
+      size={18}
+      color={tint}
+      style={{ marginRight: 8, flexShrink: 0 }}
+    />
+  );
+}
+
+/**
+ * Bigger than the 18pt glyph it replaces: a photo of a car reduced to icon size
+ * is a grey smudge, and telling a hatchback from an SUV is the entire reason
+ * these are on the row.
+ */
+const ICON_IMAGE = 34;

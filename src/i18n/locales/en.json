@@ -3,6 +3,7 @@
     "appName": "Bharat Yaatri",
     "continue": "Continue",
     "cancel": "Cancel",
+    "close": "Close",
     "language": "Language",
     "monthsShort": {
       "1": "Jan",
@@ -198,6 +199,17 @@
       "quickRide": "QuickRide",
       "outstation": "Outstation"
     }
+  },
+  "update": {
+    "title": "Update available",
+    "body": "A newer version of the app is ready. Updating takes a minute and keeps rides coming through properly.",
+    "bodyRequired": "This version is no longer supported. Update the app to carry on driving.",
+    "version": "Version {{version}}",
+    "action": "Update now",
+    "later": "Later"
+  },
+  "homeNotice": {
+    "title": "From Bharat Yaatri"
   },
   "rideAlert": {
     "quickRide_one": "New ride request nearby",
@@ -661,6 +673,9 @@
     "startFailed": "Verification is unavailable right now. Please try again later.",
     "webviewFailed": "Couldn't load the verification page. Please try again.",
     "statusFailed": "Couldn't check your verification status. Pull down to refresh.",
+    "howToRegister": "How to register yourself",
+    "howToRegisterBody": "Watch the short walkthrough video",
+    "videoFailed": "Couldn't open the video on this phone.",
     "processingTitle": "Processing your KYC",
     "processingBody": "Hang on while we confirm your Aadhaar verification. This takes a few seconds.",
     "next": "Next",

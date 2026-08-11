@@ -230,6 +230,9 @@ export default function VehicleStep({
               ]
                 .filter(Boolean)
                 .join(' · '),
+              // The type's own artwork, with the glyph left as the fallback for
+              // a type the admin hasn't given a picture to.
+              iconUrl: type.icon,
               icon: 'directions-car',
             }))}
           />
@@ -260,7 +263,7 @@ export default function VehicleStep({
 
 
         <View className="flex-row gap-3">
-          <FormField
+          {/* <FormField
             className="flex-1"
             label={t('onboarding.vehicle.seating')}
             required
@@ -273,7 +276,7 @@ export default function VehicleStep({
             maxLength={2}
             hint={t('onboarding.vehicle.seatingHint')}
             error={errors.seatingCapacity}
-          />
+          /> */}
           <FormField
             className="flex-1"
             label={t('onboarding.vehicle.year')}

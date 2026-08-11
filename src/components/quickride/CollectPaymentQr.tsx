@@ -47,7 +47,7 @@ export default function CollectPaymentQr({
   const { width } = useWindowDimensions();
 
   // Big enough to scan across a car seat, but never wider than the card.
-  const size = Math.min(220, Math.max(150, width - 160));
+  const size = Math.min(180, Math.max(150, width - 160));
 
   const payload = useMemo(
     () =>
