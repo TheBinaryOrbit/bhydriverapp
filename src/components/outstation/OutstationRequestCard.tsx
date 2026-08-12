@@ -106,7 +106,7 @@ export default function OutstationRequestCard({
 
   return (
     <View
-      className="mb-3 rounded-2xl border border-border bg-white p-3.5"
+      className="mb-3 rounded-2xl border border-outstationBorder bg-outstationSurface p-3.5"
       style={CARD_SHADOW}
     >
       {/* Departure first — it is what makes this an outstation trip rather
@@ -143,7 +143,9 @@ export default function OutstationRequestCard({
           other two numbers. */}
       {lead ? (
         <View className="mt-1 flex-row">
-          <View className="rounded-full bg-surface px-2 py-0.5">
+          {/* White, not `surface` — on the tinted card those two are the same
+              color and the pill would vanish. */}
+          <View className="rounded-full bg-white px-2 py-0.5">
             <Text className="text-[10px] font-bold text-muted">{lead}</Text>
           </View>
         </View>
@@ -196,7 +198,7 @@ export default function OutstationRequestCard({
         ])}
       </Text>
 
-      <View className="mt-3 border-t border-border pt-2.5">
+      <View className="mt-3 border-t border-outstationBorder pt-2.5">
         {bid ? (
           <>
             <BidSummary
@@ -303,8 +305,8 @@ function BidSummary({
         <Pressable
           onPress={editing ? onCancelEdit : onEdit}
           disabled={busy || blocked}
-          className={`mr-2 flex-1 items-center rounded-xl border border-border py-2.5 ${
-            busy || blocked ? 'opacity-50' : 'active:bg-surface'
+          className={`mr-2 flex-1 items-center rounded-xl border border-outstationBorder py-2.5 ${
+            busy || blocked ? 'opacity-50' : 'active:bg-white'
           }`}
         >
           <Text className="text-[13px] font-bold text-secondary">

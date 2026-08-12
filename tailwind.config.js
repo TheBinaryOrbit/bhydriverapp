@@ -19,6 +19,8 @@ module.exports = {
         border: "#e0e0e0",
         surface: "#f8f9fa",
         indicatorBorder: "#cbd2d9",
+        outstationSurface: "#f4f7f9",
+        outstationBorder: "#dbe4ea",
 
         success: "#12805c",
         warning: "#b54708",

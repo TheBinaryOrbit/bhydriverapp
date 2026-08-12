@@ -17,6 +17,12 @@ export const colors = {
   indicatorBorder: '#cbd2d9',
   secondaryMuted: 'rgba(0, 45, 75, 0.6)',
 
+  // Outstation cards sit on the same list style as QuickRide's, so they carry
+  // a cool navy-tinted surface instead of white to tell the two apart at a
+  // glance without spending the orange accent on it.
+  outstationSurface: '#f4f7f9',
+  outstationBorder: '#dbe4ea',
+
   // Status colors — verified / pending / invalid.
   success: '#12805c',
   successSurface: '#e7f6f0',
