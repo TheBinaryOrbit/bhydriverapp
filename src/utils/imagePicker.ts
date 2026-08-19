@@ -1,4 +1,4 @@
-import { Alert } from 'react-native';
+import { Alert, Linking, PermissionsAndroid, Platform } from 'react-native';
 import {
   launchCamera,
   launchImageLibrary,
@@ -30,6 +30,8 @@ export function pickImage(labels: {
   camera: string;
   gallery: string;
   cancel: string;
+  cameraBlocked: string;
+  openSettings: string;
   invalidType: string;
   tooLarge: string;
   failed: string;
@@ -41,7 +43,11 @@ export function pickImage(labels: {
       [
         {
           text: labels.camera,
-          onPress: () => {
+          onPress: async () => {
+            if (!(await ensureCamera(labels))) {
+              resolve(null);
+              return;
+            }
             launchCamera({ ...OPTIONS, saveToPhotos: false }, response =>
               resolve(handle(response, labels)),
             );
@@ -66,11 +72,70 @@ export function pickImage(labels: {
   });
 }
 
+/**
+ * Android only asks for CAMERA at the moment the driver taps "take photo", and
+ * it has to be asked at all *because* the permission is declared in the
+ * manifest: with it declared the OS refuses the capture intent outright until
+ * it is granted, rather than prompting on the app's behalf. iOS runs its own
+ * prompt from inside `launchCamera`, backed by `NSCameraUsageDescription`, so
+ * there is nothing to do there — see the `permission` error code in `handle`
+ * for what happens when that one is refused.
+ *
+ * Two refusals and Android starts answering `never_ask_again` without the
+ * driver seeing a dialog at all, so that case is handed to the settings app
+ * instead of a button that visibly does nothing. A plain refusal is left
+ * silent: the driver just said no, and the gallery is still one tap away.
+ */
+async function ensureCamera(labels: {
+  cameraBlocked: string;
+  openSettings: string;
+  cancel: string;
+}): Promise<boolean> {
+  if (Platform.OS !== 'android') {
+    return true;
+  }
+
+  const permission = PermissionsAndroid.PERMISSIONS.CAMERA;
+  if (await PermissionsAndroid.check(permission)) {
+    return true;
+  }
+
+  const result = await PermissionsAndroid.request(permission);
+  if (result === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) {
+    promptSettings(labels);
+  }
+  return result === PermissionsAndroid.RESULTS.GRANTED;
+}
+
+/** The only way back for a driver the OS will no longer prompt. */
+function promptSettings(labels: {
+  cameraBlocked: string;
+  openSettings: string;
+  cancel: string;
+}): void {
+  Alert.alert('', labels.cameraBlocked, [
+    { text: labels.cancel, style: 'cancel' },
+    { text: labels.openSettings, onPress: () => Linking.openSettings() },
+  ]);
+}
+
 function handle(
   response: ImagePickerResponse,
-  labels: { invalidType: string; tooLarge: string; failed: string },
+  labels: {
+    cameraBlocked: string;
+    openSettings: string;
+    cancel: string;
+    invalidType: string;
+    tooLarge: string;
+    failed: string;
+  },
 ): PickedImage | null {
   if (response.didCancel) {
+    return null;
+  }
+  if (response.errorCode === 'permission') {
+    // iOS: the driver refused its prompt, which iOS shows exactly once ever.
+    promptSettings(labels);
     return null;
   }
   if (response.errorCode) {

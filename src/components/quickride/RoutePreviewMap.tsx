@@ -1,17 +1,11 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import {
   MapView,
   type MapViewController,
 } from '@googlemaps/react-native-navigation-sdk';
 
-import { fetchRoutePath } from '../../services/directionsService';
+import { fetchRoutePath } from '../../services/routesService';
 import { colors } from '../../theme/colors';
 import type { LatLng } from '../../types/quickRide';
 
@@ -28,11 +22,18 @@ import type { LatLng } from '../../types/quickRide';
  * Note that inside a `ScrollView` this means a drag over the map pans the map
  * rather than scrolling the page, which is the trade the gestures buy.
  *
- * The line follows the actual driving route, fetched from the Directions
- * service. It arrives after the first paint, so the straight line is drawn
- * first and replaced when the route lands — and stays if it never does, on a
- * dead network or with no Directions key configured. Either way this is an
- * orientation aid; the turn-by-turn is the Navigate button.
+ * The only line this draws is the driving route, fetched from the Routes
+ * service. It arrives a moment after the first paint, and until it does — or if
+ * it never does, on a dead network or a misconfigured key — the map shows the
+ * destination marker and no line at all.
+ *
+ * It used to fall back to a straight hop between the two points, and that was
+ * worse than nothing: a driver cannot tell a road that happens to run straight
+ * from a line drawn because the request failed, so a broken key looked like a
+ * short trip. Drawing nothing is at least legible as nothing.
+ *
+ * Either way this is an orientation aid; the turn-by-turn is the Navigate
+ * button.
  */
 
 type Props = {
@@ -70,7 +71,6 @@ export default function RoutePreviewMap({
     null,
   );
 
-  const leg = to ? `${from ? key(from) : 'none'}|${key(to)}` : null;
   const legEnd = to ? key(to) : null;
   const hasFix = from !== null;
 
@@ -101,22 +101,17 @@ export default function RoutePreviewMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasFix, legEnd]);
 
-  /** The line to draw: the road when we have it, else the straight hop. */
+  /** The line to draw: the road, or nothing until it arrives. */
   const onRoute = route !== null && route.legEnd === legEnd;
-  const path = useMemo(
-    () => (onRoute ? route!.path : from && to ? [from, to] : null),
-    [from, onRoute, route, to],
-  );
-  // The straight line still follows the driver; the road route is drawn once.
-  const pathKey = onRoute ? `${legEnd}|route` : leg;
+  const path = onRoute ? route!.path : null;
   /**
-   * The camera settles at most twice per leg: on the first draw, and again when
-   * the road route lands — a route can bow well outside the straight line the
-   * first frame was built around, and leaving it half off the map is worse than
-   * one correction a second in. Position pings are not in this key, so they
-   * never move the camera.
+   * Two draws per leg at most — the marker alone, then the road once it lands.
+   * The driver's position is deliberately absent from this key: nothing on the
+   * map is drawn from it any more, so a 5s ping has nothing to redraw and
+   * nothing to re-frame.
    */
-  const frameKey = onRoute ? `${legEnd}|route` : legEnd;
+  const pathKey = onRoute ? `${legEnd}|route` : legEnd;
+  const frameKey = pathKey;
 
   const draw = useCallback(async () => {
     const map = controller.current;

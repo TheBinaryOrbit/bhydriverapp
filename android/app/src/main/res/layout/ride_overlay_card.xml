@@ -10,9 +10,9 @@
   on a button.
 
   Laid out for a glance: the fare is the largest thing on it because it is the
-  only number the driver decides on, and pickup and drop are single-line and
-  ellipsized — a driver mid-turn reads the first few words of a street name and
-  nothing more.
+  only number the driver decides on. Pickup and drop are shown in full and wrap
+  — a truncated address hides the part that decides the ride, since two very
+  different trips share a first line often enough for it to matter.
 
   One card serves both products. The tag in the top-left is what tells them
   apart, and it is deliberately above the fare: an outstation trip and a
@@ -121,29 +121,56 @@
         android:textColor="#6f6f70"
         android:textSize="13sp" />
 
-    <TextView
-        android:id="@+id/overlay_pickup"
+    <!--
+      Pickup and drop wrap to as many lines as the address needs. The dot is its
+      own view rather than a `drawableStart` because a compound drawable centres
+      itself against the whole TextView: on a three-line address it would drift
+      to the middle of the block, away from the line it marks. The 5dp nudge is
+      what sits the 10dp dot on the optical centre of the first line.
+    -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
-        android:maxLines="1"
-        android:ellipsize="end"
-        android:drawablePadding="10dp"
-        android:drawableStart="@drawable/overlay_dot_pickup"
-        android:textColor="#002d4b"
-        android:textSize="15sp" />
+        android:orientation="horizontal">
 
-    <TextView
-        android:id="@+id/overlay_drop"
+        <View
+            android:layout_width="10dp"
+            android:layout_height="10dp"
+            android:layout_marginTop="5dp"
+            android:layout_marginEnd="10dp"
+            android:background="@drawable/overlay_dot_pickup" />
+
+        <TextView
+            android:id="@+id/overlay_pickup"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textColor="#002d4b"
+            android:textSize="15sp" />
+    </LinearLayout>
+
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:maxLines="1"
-        android:ellipsize="end"
-        android:drawablePadding="10dp"
-        android:drawableStart="@drawable/overlay_dot_drop"
-        android:textColor="#002d4b"
-        android:textSize="15sp" />
+        android:orientation="horizontal">
+
+        <View
+            android:layout_width="10dp"
+            android:layout_height="10dp"
+            android:layout_marginTop="5dp"
+            android:layout_marginEnd="10dp"
+            android:background="@drawable/overlay_dot_drop" />
+
+        <TextView
+            android:id="@+id/overlay_drop"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textColor="#002d4b"
+            android:textSize="15sp" />
+    </LinearLayout>
 
     <!--
       Hidden whole when the server sent no usable bid range. There is still a

@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import LinearGradient from 'react-native-linear-gradient';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { getVersion } from 'react-native-device-info';
 import { useTranslation } from 'react-i18next';
 
 import type { RootStackParamList } from '../navigation/types';
@@ -34,7 +35,8 @@ import type { AppContentSummary } from '../types/driver';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
-const APP_VERSION = '1.0.0';
+// Reads the native version name (Android `versionName` / iOS `CFBundleShortVersionString`).
+const APP_VERSION = getVersion();
 
 /**
  * Driver profile hub: identity card fed by `GET /drivers/me`, then the edit

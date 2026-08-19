@@ -44,6 +44,8 @@ export default function ImageUpload({
       camera: t('upload.camera'),
       gallery: t('upload.gallery'),
       cancel: t('common.cancel'),
+      cameraBlocked: t('upload.cameraBlocked'),
+      openSettings: t('upload.openSettings'),
       invalidType: t('upload.invalidType'),
       tooLarge: t('upload.tooLarge'),
       failed: t('upload.failed'),

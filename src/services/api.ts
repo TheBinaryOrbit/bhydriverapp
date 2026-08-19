@@ -5,7 +5,8 @@
  * `useMock` to `true` to exercise the auth + onboarding UI without a server.
  */
 export const API = {
-  baseUrl: 'https://08wnx4c4-5000.inc1.devtunnels.ms/api/v3',
+  baseUrl: 'https://api.user.bharatyaatri.com/api/v3',
+  // baseUrl : "https://08wnx4c4-5000.inc1.devtunnels.ms/api/v3",
   /**
    * The previous-generation production API, still holding the vehicles drivers
    * registered before this app. Read-only and used for exactly one thing —
@@ -105,19 +106,25 @@ export const API = {
   kycRedirectUrls: ['https://bharatyaatri.com'] as string[],
 
   /**
-   * Key for the **Directions web service**, used only to draw the road route on
-   * the ride screen's preview map.
+   * Key for the **Routes API**, used only to draw the road route on the ride
+   * screens' preview map.
    *
-   * Not the same key as the native `MAPS_API_KEY`: that one is restricted to
-   * the Android/iOS app, and Google rejects app-restricted keys on web-service
-   * calls. This needs its own key with the Directions API enabled, and — since
-   * it ships in the JS bundle — an HTTP-referrer or IP restriction plus a tight
-   * quota. Leave it empty and the map draws a straight line instead, which is
-   * what it did before.
+   * Two things to get right, both in the Cloud console:
+   *
+   * - **Enable the Routes API** on the project. Not the legacy Directions API —
+   *   Google no longer lets a project turn that one on, so it answers
+   *   `REQUEST_DENIED` however good the key is.
+   * - **Use a key of its own**, not the native `MAPS_API_KEY`: that one is
+   *   restricted to the Android/iOS app, and Google rejects an app-restricted
+   *   key on a web-service call. Restrict this one by IP or referrer and give
+   *   it a tight quota — it ships inside the JS bundle.
+   *
+   * Leave it empty and the ride maps draw no route line at all — just the
+   * destination marker.
    *
    * Better still, move the call behind our own API and delete this.
    */
-  directionsApiKey: '',
+  routesApiKey: 'AIzaSyBITP8l9oUvZj2iPiqt1stpJODNb9vObt0',
 
   /** Role sent to `/auth/verify` — this is the driver app. */
   role: 'driver',
